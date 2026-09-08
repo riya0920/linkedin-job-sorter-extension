@@ -373,6 +373,17 @@
     return STAFFING_RES.some(re => re.test(c));
   }
 
+  // Strong "this is a recruiter posting for a client" phrases. Only checked
+  // against the description Deep scan captured — kept tight to avoid tagging a
+  // direct employer that merely mentions clients.
+  const RECRUITER_DESC_RE = /\b(on behalf of (?:our|a|their) client|our client is|our client,|our client is seeking|we are a (?:staffing|recruit\w*|talent)\b|staffing agency|recruitment agency|recruiting firm|is a (?:staffing|recruiting) (?:agency|firm|company))\b/i;
+
+  // A job is "agency" if the company name is a known staffing firm OR the
+  // description reads like a recruiter posting for a client.
+  function isAgencyJob(j) {
+    return isStaffing(j.company) || RECRUITER_DESC_RE.test(String(j.desc || ''));
+  }
+
   // "Reposted", "Re-posted", "Reposted 3 days ago" — anywhere on the card.
   const REPOST_RE = /\bre-?\s?posted\b/i;
 
@@ -718,7 +729,7 @@
     // Always recompute these too. Storing them once meant a row saved as
     // repost:false could never be corrected when detection improved — which is
     // exactly how a repost ended up sitting in the Fresh tab.
-    j.staffing = isStaffing(j.company);
+    j.staffing = isAgencyJob(j);
     j.repost = isRepost(j);
     j.noSponsor = noSponsorSignal(j);
     if (j.salary === undefined) j.salary = parseSalary((j.raw || '') + ' ' + (j.desc || ''));
@@ -736,6 +747,12 @@
   function saveJobs(jobs) {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(jobs)); }
     catch (e) { console.warn('[LJS] could not save jobs:', e); }
+  }
+
+  // Which tab a job belongs to. One job → one tab, by priority:
+  // visa blocker → agency/recruiter → repost → fresh (direct-employer & new).
+  function catOf(j) {
+    return j.noSponsor ? 'blocked' : (j.staffing ? 'agency' : (j.repost ? 'reposted' : 'fresh'));
   }
 
   function idKey(j) { return j.jobId ? 'id:' + j.jobId : null; }
@@ -767,7 +784,7 @@
       // Re-derive everything from the merged fields.
       const sp = sponsorInfo(prev.company);
       prev.sponsor = sp !== null; prev.sponsorCount = sp ? sp.count : 0;
-      prev.staffing = isStaffing(prev.company);
+      prev.staffing = isAgencyJob(prev);
       prev.repost = isRepost(prev);
       prev.noSponsor = noSponsorSignal(prev);
       prev.salary = parseSalary((prev.raw || '') + ' ' + (prev.desc || ''));
@@ -818,7 +835,7 @@
       const sp = sponsorInfo(prev.company);
       prev.sponsor = sp !== null;
       prev.sponsorCount = sp ? sp.count : 0;
-      prev.staffing = isStaffing(prev.company);
+      prev.staffing = isAgencyJob(prev);
       prev.repost = isRepost(prev);
       prev.noSponsor = noSponsorSignal(prev);
       prev.salary = parseSalary((prev.raw || '') + ' ' + (prev.desc || ''));
@@ -1116,7 +1133,7 @@
           const sp = sponsorInfo(job.company);
           job.sponsor = sp !== null;
           job.sponsorCount = sp ? sp.count : 0;
-          job.staffing = isStaffing(job.company);
+          job.staffing = isAgencyJob(job);
           job.repost = isRepost(job);
           job.noSponsor = noSponsorSignal(job);
           job.salary = parseSalary(job.raw + ' ' + (job.desc || ''));
@@ -1371,7 +1388,7 @@
       ['Sponsors & visa', [
         ['🟢', '<b>H-1B sponsor badge</b> with the employer’s FY2025 approval count.'],
         ['🚫', '<b>Citizens-only / clearance flags</b> — Deep scan reads the full description to catch “cannot sponsor” even when it’s not on the card.'],
-        ['🏢', '<b>Staffing-agency flag</b> to hide the body-shop noise.']
+        ['🏢', '<b>Agencies get their own tab</b> — staffing / recruiting firms are pulled out so Fresh shows direct employers only.']
       ]],
       ['Read without leaving', [
         ['📄', '<b>Read the job description</b> right in the panel — tap 📄 on any job Deep scan has opened.']
@@ -1476,7 +1493,6 @@
               <button class="ljs-chip" data-opt="hideSeen">Seen</button>
               <button class="ljs-chip" data-opt="hideApplied">Applied</button>
               <button class="ljs-chip" data-opt="hideNegative">Senior roles</button>
-              <button class="ljs-chip" data-opt="hideStaffing">Agencies</button>
             </div>
           </div>
           <div id="ljs-stats"></div>
@@ -1500,6 +1516,7 @@
         <div id="ljs-tabs">
           <button class="ljs-tab" data-tab="fresh">Fresh</button>
           <button class="ljs-tab" data-tab="reposted">Reposted</button>
+          <button class="ljs-tab" data-tab="agency">Agencies</button>
           <button class="ljs-tab" data-tab="blocked">No sponsor</button>
         </div>
         <div id="ljs-list">
@@ -1644,8 +1661,7 @@
     // Copy the links of whatever is in the current tab, honouring filters.
     on('ljs-copy-links', 'click', () => {
       const opts = loadOpts();
-      const cur = { fresh: 1, reposted: 1, blocked: 1 }[opts.tab] ? opts.tab : 'fresh';
-      const catOf = j => j.noSponsor ? 'blocked' : (j.repost ? 'reposted' : 'fresh');
+      const cur = { fresh: 1, reposted: 1, blocked: 1, agency: 1 }[opts.tab] ? opts.tab : 'fresh';
       const f = currentFilter().toLowerCase();
       const hay = j => (String(j.title || '') + ' ' + String(j.company || '') + ' ' +
         String(j.location || '')).toLowerCase();
@@ -1779,22 +1795,20 @@
       if (opts.hideSeen && seen.has(uid)) return false;
       if (opts.hideApplied && applied.has(uid)) return false;
       if (opts.hideNegative && matchesNegative(j.title).length > 0) return false;
-      if (opts.hideStaffing && j.staffing) return false;
-      // No-sponsor roles now have their own tab, so no chip filter here.
+      // Agencies and no-sponsor roles now have their own tabs, so no chip here.
       return true;
     });
 
     // Each job lands in exactly one tab. Priority: a visa blocker matters most
-    // (you can't apply anyway), then repost, else fresh.
-    const catOf = j => j.noSponsor ? 'blocked' : (j.repost ? 'reposted' : 'fresh');
-    const valid = { fresh: 1, reposted: 1, blocked: 1 };
-    const tab = valid[opts.tab] ? opts.tab : 'fresh';
-    const counts = { fresh: 0, reposted: 0, blocked: 0 };
+    // (you can't apply anyway), then agencies (indirect), then repost, else fresh.
+    // So "Fresh" is direct-employer, genuinely-new roles only.
+    const tab = { fresh: 1, reposted: 1, blocked: 1, agency: 1 }[opts.tab] ? opts.tab : 'fresh';
+    const counts = { fresh: 0, reposted: 0, blocked: 0, agency: 0 };
     base.forEach(j => counts[catOf(j)]++);
     const filtered = base.filter(j => catOf(j) === tab);
 
     // Tab labels carry their own counts, so the split is visible before clicking.
-    const tabLabel = { fresh: '⚡ Fresh', reposted: '🔁 Reposted', blocked: '🚫 No sponsor' };
+    const tabLabel = { fresh: '⚡ Fresh', reposted: '🔁 Reposted', blocked: '🚫 No sponsor', agency: '🏢 Agencies' };
     const tabsEl = document.getElementById('ljs-tabs');
     if (tabsEl) {
       tabsEl.querySelectorAll('.ljs-tab').forEach(t => {
@@ -1814,10 +1828,11 @@
       kwMatches + ' keyword matches' + (lastScanNote ? ' · ' + lastScanNote : '');
 
     if (filtered.length === 0) {
-      const emptyEmoji = { reposted: '🎉', blocked: '🎉', fresh: '🔍' };
+      const emptyEmoji = { reposted: '🎉', blocked: '🎉', agency: '🎉', fresh: '🔍' };
       const emptyMsg = {
         reposted: 'No reposts here — all fresh!',
         blocked: 'No visa-blocked roles 🎉',
+        agency: 'No recruiters here — all direct employers 🎉',
         fresh: 'No jobs match the current filters'
       };
       list.innerHTML = '<div class="ljs-empty"><span class="ljs-empty-emoji">' +
@@ -1834,6 +1849,9 @@
     } else if (tab === 'blocked') {
       html += '<div class="ljs-tab-note">These say citizens-only / clearance / “no sponsorship” — ' +
         'mostly found by Deep scan reading the full description.</div>';
+    } else if (tab === 'agency') {
+      html += '<div class="ljs-tab-note">Staffing / recruiting firms posting on behalf of a client — ' +
+        'kept out of Fresh so it shows direct employers only.</div>';
     }
 
     filtered.forEach(j => {
