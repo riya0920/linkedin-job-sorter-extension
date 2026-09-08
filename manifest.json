@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "LinkedIn Job Sorter",
+  "version": "5.4",
+  "description": "Sorts LinkedIn job results newest-first, splits reposts into their own tab, badges known H-1B sponsors with approval counts, scores fit, tracks seen/applied, and self-tests its own logic.",
+  "permissions": [
+    "storage"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.linkedin.com/jobs/search*"
+      ],
+      "js": [
+        "sponsors.js",
+        "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

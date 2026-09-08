@@ -1,0 +1,405 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   LinkedIn Job Sorter — "clean light" theme, teal accent
+   Search-first header · filters in a ⚙ drawer · actions in a ⋯ menu.
+   ───────────────────────────────────────────────────────────────────────── */
+#ljs-panel {
+  --accent:   #0d9488;   /* teal */
+  --accent-d: #0f766e;
+  --accent-t: #e6f6f4;   /* teal tint bg */
+  --bg:       #f7f8fa;   /* panel base   */
+  --card:     #ffffff;
+  --line:     #e7eaef;
+  --line-2:   #dde1e8;
+  --ink:      #1c2430;
+  --muted:    #667085;
+  --faint:    #9aa2b1;
+
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: 420px;
+  max-width: calc(100vw - 24px);
+  z-index: 2147483000;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s ease;
+  pointer-events: auto;
+  animation: ljs-slide 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes ljs-slide { from { transform: translateX(24px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+#ljs-panel.ljs-collapsed { transform: translateX(calc(100% + 16px)); opacity: 0; pointer-events: none; }
+
+#ljs-panel-inner {
+  height: 100%;
+  background: var(--bg);
+  border-radius: 16px;
+  box-shadow: 0 14px 44px rgba(28, 36, 48, 0.18), 0 0 0 1px rgba(28, 36, 48, 0.05);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--ink);
+  position: relative;
+}
+
+.ljs-hidden { display: none !important; }
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+#ljs-header {
+  padding: 13px 14px 12px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+#ljs-header-row { display: flex; justify-content: space-between; align-items: center; }
+
+#ljs-title {
+  font-size: 15.5px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}
+#ljs-title .ljs-spark { color: var(--accent); font-size: 13px; }
+
+.ljs-headbtns { display: flex; gap: 4px; }
+.ljs-headbtns button {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.15s ease;
+}
+.ljs-headbtns button:hover { background: var(--bg); color: var(--ink); }
+#ljs-filters-toggle.active { background: var(--accent-t); color: var(--accent-d); }
+.ljs-fdot {
+  position: absolute; top: 5px; right: 5px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); border: 1.5px solid var(--card);
+}
+#ljs-close:hover { color: var(--ink); }
+
+/* search row */
+#ljs-searchrow { margin-top: 11px; display: flex; gap: 7px; align-items: center; }
+#ljs-filter {
+  flex: 1;
+  padding: 9px 13px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-family: inherit;
+  outline: none;
+  background: var(--bg);
+  color: var(--ink);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+#ljs-filter::placeholder { color: var(--faint); }
+#ljs-filter:focus { border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px rgba(13,148,136,0.14); }
+
+.ljs-primary {
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  padding: 9px 18px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  box-shadow: 0 2px 8px rgba(13,148,136,0.28);
+}
+.ljs-primary:hover { background: var(--accent-d); box-shadow: 0 4px 12px rgba(13,148,136,0.36); }
+.ljs-primary:active { transform: scale(0.96); }
+
+.ljs-secondary {
+  border: 1px solid var(--line-2);
+  background: var(--card);
+  color: var(--muted);
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.ljs-secondary:hover { border-color: var(--accent); color: var(--accent-d); background: var(--accent-t); }
+.ljs-secondary:active { transform: scale(0.96); }
+
+/* filter drawer */
+#ljs-drawer {
+  margin-top: 11px;
+  padding: 11px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  animation: ljs-drawer-in 0.2s ease;
+}
+@keyframes ljs-drawer-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+.ljs-drawer-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; color: var(--faint); margin-bottom: 8px; }
+#ljs-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ljs-chip {
+  background: var(--card);
+  border: 1px solid var(--line-2);
+  color: var(--muted);
+  padding: 5px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  transition: all 0.14s ease;
+}
+.ljs-chip:hover { border-color: var(--line-2); background: #fff; color: var(--ink); }
+.ljs-chip:active { transform: scale(0.94); }
+.ljs-chip-on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ljs-chip-on::before { content: '✓ '; font-weight: 800; }
+
+#ljs-stats { margin-top: 10px; font-size: 11px; font-weight: 600; color: var(--muted); line-height: 1.5; min-height: 14px; }
+
+/* ── ⋯ menu (dropdown) ──────────────────────────────────────────────────── */
+#ljs-menu {
+  position: absolute;
+  top: 46px;
+  right: 12px;
+  z-index: 30;
+  width: 232px;
+  background: var(--card);
+  border: 1px solid var(--line-2);
+  border-radius: 13px;
+  box-shadow: 0 12px 34px rgba(28, 36, 48, 0.2);
+  padding: 6px;
+  animation: ljs-menu-in 0.16s ease;
+}
+@keyframes ljs-menu-in { from { opacity: 0; transform: translateY(-6px) scale(0.98); } to { opacity: 1; transform: none; } }
+.ljs-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 11px;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.ljs-menu-item:hover { background: var(--bg); }
+.ljs-menu-danger { color: #d0342c; }
+.ljs-menu-danger:hover { background: #fdf0ef; }
+.ljs-menu-sep { height: 1px; background: var(--line); margin: 5px 6px; }
+
+/* ── Tabs ───────────────────────────────────────────────────────────────── */
+#ljs-tabs {
+  display: flex;
+  gap: 18px;
+  padding: 0 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.ljs-tab {
+  padding: 12px 2px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--faint);
+  border-bottom: 2.5px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s ease;
+}
+.ljs-tab:hover { color: var(--muted); }
+.ljs-tab-on { color: var(--accent-d); border-bottom-color: var(--accent); }
+
+.ljs-tab-note {
+  font-size: 11px;
+  color: #9a6a12;
+  background: #fdf6e6;
+  border: 1px solid #f2e2b8;
+  border-radius: 10px;
+  padding: 8px 11px;
+  margin: 10px 12px 2px;
+  line-height: 1.45;
+}
+
+/* ── List ───────────────────────────────────────────────────────────────── */
+#ljs-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px 12px 12px;
+  background: var(--bg);
+  scrollbar-width: thin;
+  scrollbar-color: #cdd3dd transparent;
+}
+#ljs-list::-webkit-scrollbar { width: 8px; }
+#ljs-list::-webkit-scrollbar-thumb { background: #cdd3dd; border-radius: 8px; }
+#ljs-list::-webkit-scrollbar-thumb:hover { background: #b9c0cd; }
+
+.ljs-job {
+  display: block;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  background: var(--card);
+  text-decoration: none;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+  animation: ljs-card-in 0.28s ease both;
+}
+@keyframes ljs-card-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+.ljs-job:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(28,36,48,0.1); border-color: var(--line-2); }
+
+.ljs-job-title { font-size: 13.5px; font-weight: 700; color: var(--ink); line-height: 1.35; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.ljs-job-company { font-size: 12px; color: var(--muted); margin-top: 4px; font-weight: 600; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.ljs-job-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 9px; gap: 6px; }
+.ljs-job-location { font-size: 11px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.ljs-meta-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+.ljs-time-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 7px; white-space: nowrap; }
+.ljs-score-badge { font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 7px; white-space: nowrap; min-width: 25px; text-align: center; }
+.ljs-applied-btn {
+  width: 21px; height: 21px; border-radius: 7px;
+  border: 1px solid var(--line-2); background: #fff; color: #c3c9d4;
+  font-size: 11px; line-height: 1; cursor: pointer; padding: 0; font-family: inherit;
+  transition: all 0.15s ease;
+}
+.ljs-applied-btn:hover { border-color: var(--accent); color: var(--accent); transform: scale(1.14); }
+.ljs-applied-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ── Card tags ──────────────────────────────────────────────────────────── */
+.ljs-keyword-match { border-left: 3px solid var(--accent); }
+.ljs-keyword-tag { font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 6px; background: var(--accent-t); color: var(--accent-d); }
+.ljs-sponsor-tag { font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 6px; background: #e7f7ee; color: #128a52; border: 1px solid #c6ecd6; }
+.ljs-agency-tag, .ljs-repost-tag, .ljs-neg-tag, .ljs-nosponsor-tag, .ljs-nolink-tag { font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 6px; }
+.ljs-agency-tag    { background: #fdf1d6; color: #96700f; }
+.ljs-repost-tag    { background: #fde8ec; color: #c23a5b; }
+.ljs-neg-tag       { background: #eef1f5; color: var(--muted); }
+.ljs-nosponsor-tag { background: #fdecec; color: #cf3b3b; }
+.ljs-nolink-tag    { background: #fdecec; color: #cf3b3b; }
+
+.ljs-job.ljs-nolink { opacity: 0.62; cursor: default; }
+.ljs-job.ljs-nolink:hover { transform: none; box-shadow: none; border-color: var(--line); }
+.ljs-job.ljs-seen { opacity: 0.55; }
+.ljs-job.ljs-applied { border-color: #c6ecd6; box-shadow: inset 3px 0 0 var(--accent); }
+
+.ljs-section-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.7px; color: var(--faint); padding: 12px 4px 6px; }
+
+/* ── Toggle handle ──────────────────────────────────────────────────────── */
+#ljs-toggle {
+  position: fixed; top: 50%; right: 0; transform: translateY(-50%);
+  z-index: 2147482999;
+  background: var(--accent); color: #fff; border: none;
+  padding: 13px 8px; border-radius: 12px 0 0 12px; cursor: pointer;
+  font-size: 12px; font-weight: 800; writing-mode: vertical-rl;
+  box-shadow: -2px 0 14px rgba(13,148,136,0.3);
+  transition: padding 0.2s ease; letter-spacing: 1px;
+}
+#ljs-toggle:hover { padding-right: 13px; }
+
+/* ── Progress ───────────────────────────────────────────────────────────── */
+#ljs-progress { padding: 24px 16px; text-align: center; color: var(--muted); font-size: 13px; font-weight: 600; }
+.ljs-progress-bar { width: 100%; height: 6px; background: #e4e8ee; border-radius: 999px; margin-top: 12px; overflow: hidden; }
+.ljs-progress-fill { height: 100%; background: linear-gradient(90deg, #0d9488, #14b8a6, #0d9488); background-size: 200% 100%; border-radius: 999px; transition: width 0.3s ease; animation: ljs-shimmer 1.4s linear infinite; }
+@keyframes ljs-shimmer { 0% { background-position: 0 0; } 100% { background-position: 200% 0; } }
+
+.ljs-empty { padding: 44px 24px; text-align: center; color: var(--faint); font-size: 13px; font-weight: 500; }
+.ljs-empty-emoji { font-size: 34px; display: block; margin-bottom: 12px; opacity: 0.8; }
+
+/* ── Ready state ────────────────────────────────────────────────────────── */
+#ljs-ready { padding: 40px 26px; text-align: center; }
+.ljs-ready-emoji { font-size: 30px; color: var(--accent); margin-bottom: 14px; }
+.ljs-ready-title { font-size: 16px; font-weight: 800; color: var(--ink); margin-bottom: 8px; }
+.ljs-ready-sub { font-size: 13px; color: var(--muted); margin-bottom: 16px; line-height: 1.55; }
+.ljs-ready-sub b { color: var(--ink); }
+.ljs-ready-hint { font-size: 11.5px; color: var(--faint); line-height: 1.7; }
+.ljs-ready-hint b { color: var(--muted); }
+
+/* ── Features / About view ──────────────────────────────────────────────── */
+#ljs-features { padding: 6px 2px 14px; }
+.ljs-feat-hero { text-align: center; padding: 20px 14px 16px; margin: 4px 2px 12px; border-radius: 14px; background: linear-gradient(180deg, var(--accent-t), var(--card)); border: 1px solid var(--line); }
+.ljs-feat-hero .e { font-size: 26px; color: var(--accent); }
+.ljs-feat-hero .t { font-size: 16px; font-weight: 800; color: var(--ink); margin-top: 8px; }
+.ljs-feat-hero .s { font-size: 12px; font-weight: 500; color: var(--muted); margin-top: 4px; }
+.ljs-feat-group { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.7px; color: var(--faint); padding: 12px 10px 6px; }
+.ljs-feat { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; margin: 0 2px 6px; background: var(--card); border: 1px solid var(--line); border-radius: 11px; font-size: 12.5px; font-weight: 500; color: var(--muted); line-height: 1.42; }
+.ljs-feat .fe { font-size: 15px; flex-shrink: 0; }
+.ljs-feat b { color: var(--ink); font-weight: 700; }
+
+/* ── Self-test report ───────────────────────────────────────────────────── */
+#ljs-selftest-report { padding: 8px 2px; }
+.ljs-st-head { font-size: 14px; font-weight: 800; padding: 8px 10px 12px; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+.ljs-st-pill { font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; }
+.ljs-st-pill.ok  { background: #e7f7ee; color: #128a52; }
+.ljs-st-pill.bad { background: #fdecec; color: #cf3b3b; }
+.ljs-st-row { display: flex; align-items: flex-start; gap: 8px; padding: 6px 10px; font-size: 12px; font-weight: 500; border-radius: 8px; margin: 0 2px 2px; }
+.ljs-st-row.pass { color: var(--muted); }
+.ljs-st-row.fail { color: #cf3b3b; background: #fdf0ef; }
+.ljs-st-mark { flex-shrink: 0; font-weight: 800; }
+.ljs-st-row.pass .ljs-st-mark { color: var(--accent); }
+.ljs-st-group { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.7px; color: var(--faint); padding: 12px 10px 4px; }
+
+/* ── Description button + reading view ──────────────────────────────────── */
+.ljs-desc-btn {
+  width: 21px; height: 21px; border-radius: 7px;
+  border: 1px solid var(--line-2); background: #fff; color: var(--muted);
+  font-size: 11px; line-height: 1; cursor: pointer; padding: 0; font-family: inherit;
+  transition: all 0.15s ease;
+}
+.ljs-desc-btn:hover { border-color: var(--accent); color: var(--accent); transform: scale(1.14); background: var(--accent-t); }
+
+#ljs-desc-view { padding: 8px 4px 16px; }
+.ljs-desc-back {
+  background: transparent; border: none; color: var(--accent-d);
+  font-size: 12.5px; font-weight: 700; font-family: inherit; cursor: pointer;
+  padding: 6px 6px 10px;
+}
+.ljs-desc-back:hover { text-decoration: underline; }
+.ljs-desc-title { font-size: 16px; font-weight: 800; color: var(--ink); padding: 0 8px; line-height: 1.3; }
+.ljs-desc-company { font-size: 12.5px; font-weight: 600; color: var(--muted); padding: 5px 8px 0; }
+.ljs-desc-tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 8px 0; }
+.ljs-desc-open {
+  display: inline-block; margin: 12px 8px 4px;
+  font-size: 12px; font-weight: 700; color: var(--accent-d);
+  text-decoration: none; border: 1px solid var(--line-2); border-radius: 8px;
+  padding: 7px 12px; background: #fff; transition: all 0.15s ease;
+}
+.ljs-desc-open:hover { background: var(--accent-t); border-color: var(--accent); }
+.ljs-desc-body {
+  margin: 12px 8px 0; padding: 14px 15px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  font-size: 13px; font-weight: 400; line-height: 1.6; color: #3a4351;
+  white-space: pre-wrap; word-break: break-word;
+}
+.ljs-desc-foot { font-size: 11px; color: var(--faint); padding: 10px 10px 0; line-height: 1.5; }
+
+/* ── Salary + location sub-line on cards ────────────────────────────────── */
+.ljs-job-sub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 7px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.ljs-loc { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 55%; }
+.ljs-salary { color: #128a52; }
