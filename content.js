@@ -579,6 +579,28 @@
     return textSaysReposted(document.body, excludedRoots());
   }
 
+  // Any text that looks like a posting-age marker ("3 hours ago", "Reposted 2
+  // days ago", "Just now", "Posted on …").
+  const AGE_MARKER_RE = /\bre-?\s?posted\b|\bposted on\b|\bjust now\b|\bmoments?\s+ago\b|\b\d+\s+(second|minute|hour|day|week|month)s?\s+ago\b/i;
+
+  // Is the OPEN job a repost? Reads only the job's own posted-date line — the
+  // FIRST age marker in document order, which is the detail header. LinkedIn's
+  // "similar jobs" sidebar is full of reposts but sits far below the header, so
+  // scanning the whole pane (or a capped read) would false-positive on it.
+  function paneRepost() {
+    const roots = excludedRoots();
+    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    while (w.nextNode()) {
+      const node = w.currentNode, p = node.parentElement;
+      if (p && SKIP_TAGS[p.tagName]) continue;
+      if (isExcluded(node, roots)) continue;
+      const t = (node.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!t || CHROME_TEXT_RE.test(t)) continue;
+      if (AGE_MARKER_RE.test(t)) return REPOST_RE.test(t);  // first age line wins
+    }
+    return false;
+  }
+
   // Returns 'citizens only' | 'no sponsorship' | 'clearance' | null.
   // A negative always wins — the safer read for an applicant who needs sponsorship.
   // Pull a pay figure out of card/description text, e.g. "$65K/yr - $80K/yr",
@@ -1163,7 +1185,11 @@
         // is the only place LinkedIn states a posting was reposted.
         const before = currentJobId();
         if (deep && direct && direct === before) {
-          setTimeout(() => record(direct, detailSaysReposted(), detailProbe(), detailText(6000)), 250);
+          setTimeout(() => {
+            // Repost = does THIS job's own posted-date line say so (not the
+            // similar-jobs sidebar, which is full of reposts).
+            record(direct, paneRepost(), detailProbe(), detailText(6000));
+          }, 250);
           return;
         }
 
@@ -1210,7 +1236,7 @@
                   if (!confirmed) deepUnconfirmed++;
                   deepDone++;
                   record(id || direct,
-                         confirmed ? detailSaysReposted() : null,
+                         confirmed ? paneRepost() : null,
                          (confirmed ? '' : 'UNCONFIRMED: ') + finalPane,
                          confirmed ? detailText(6000) : '');
                   return;
@@ -1638,7 +1664,8 @@
       out.push('   panels read: ' + withPane + ' of ' + jobs.length + ' stored jobs');
       out.push('   cards on this page right now: ' +
         (mainEl() ? jobCards(mainEl()).length : 0));
-      out.push('   detailSaysReposted() right now: ' + detailSaysReposted());
+      out.push('   this job posted-line says reposted: ' + paneRepost() +
+               '  (page-wide: ' + detailSaysReposted() + ')');
       out.push('   pane probe right now: ' + JSON.stringify(detailProbe()));
       let paneHit = '(none)';
       const w2 = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
