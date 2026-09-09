@@ -48,16 +48,28 @@
     [/\bpolygraph\b/i, 'clearance']
   ];
 
-  // Staffing shops and body-shops that flood ML searches.
+  // Staffing shops and body-shops that flood ML searches. Matched as whole
+  // words against the company name (word-boundary), so "consulting" catches
+  // "Apetan Consulting LLC" but not a company merely mentioning consulting.
   const STAFFING_COMPANIES = [
+    // named agencies / IT body-shops
     'diverse lynx', 'cybercoders', 'insight global', 'robert half', 'teksystems',
     'randstad', 'adecco', 'kforce', 'motion recruitment', 'jobot', 'dice',
     'apex systems', 'collabera', 'aditi', 'mindlance', 'artech', 'infojini',
     'talentburst', 'compunnel', 'harnham', 'averity', 'jefferson frank',
-    'oscar technology', 'phoenix recruitment', 'staffing', 'recruiting',
-    'recruitment', 'talent solutions', 'consultancy', 'consulting group',
-    'akkodis', 'experis', 'modis', 'hays', 'michael page', 'lorien',
-    'signify technology', 'understanding recruitment', 'burtch works'
+    'oscar technology', 'phoenix recruitment', 'akkodis', 'experis', 'modis',
+    'hays', 'michael page', 'lorien', 'signify technology',
+    'understanding recruitment', 'burtch works', 'apetan', 'mastech', 'net2source',
+    'nlb services', 'sunrise systems', 'ampcus', 'e-solutions', 'saxon global',
+    'photon', 'ust global', 'nastech', 'stellent', 'vdart', 'v-soft', 'zortech',
+    // generic role words that signal an agency / body-shop
+    'staffing', 'staffing agency', 'recruiting', 'recruitment', 'recruiters',
+    'talent solutions', 'talent acquisition', 'talent group', 'consultancy',
+    'consulting group', 'consulting llc', 'consulting inc', 'consulting services',
+    'consulting', 'consultants', 'it consulting', 'it services', 'it solutions',
+    'resourcing', 'resources llc', 'outsourcing', 'workforce', 'placements',
+    'placement services', 'staff augmentation', 'infotech', 'softech',
+    'info systems', 'infosystems', 'manpower', 'headhunt'
   ];
 
   const SCORE = {
@@ -508,7 +520,10 @@
     'see more', 'see less', 'show all', 'new feed updates notifications',
     'sign in', 'join now', 'about', 'accessibility', 'privacy.*', 'cookie.*',
     // The search-feedback strip LinkedIn injects between the list and the pane.
-    'are these results helpful\\??', 'your feedback helps.*', 'was this helpful\\??'
+    'are these results helpful\\??', 'your feedback helps.*', 'was this helpful\\??',
+    // Premium upsell strip that also appears outside the results list.
+    'see jobs where you.*top applicant', 'restart premium.*', 'try premium.*',
+    'retry premium.*', 'reactivate premium.*'
   ].join('|') + ')$', 'i');
 
   function detailProbe() {
