@@ -216,6 +216,9 @@
   })();
 
   const SPONSORS = new Set(SPONSOR_INDEX.keys());   // kept for the test harness
+  // Whether a sponsor list is actually loaded. When it isn't (e.g. the public
+  // stub sponsors.js), the sponsor split is meaningless, so we skip it.
+  const HAS_SPONSOR_DATA = SPONSOR_INDEX.size > 0;
 
   // LinkedIn shows the brand ("Amazon"); H-1B filings show the legal entity
   // ("AMAZON COM SERVICES LLC"). Exact matching misses every one of those, so
@@ -787,9 +790,15 @@
   }
 
   // Which tab a job belongs to. One job → one tab, by priority:
-  // visa blocker → agency/recruiter → repost → fresh (direct-employer & new).
+  // agency/recruiter → repost → not-a-sponsor → fresh. So FRESH is the clean
+  // pile: a KNOWN H-1B sponsor, direct employer, not reposted, not visa-blocked.
+  // "nonsponsor" = the role is visa-blocked (citizens-only/clearance) OR — when
+  // a sponsor list is loaded — the company isn't in it.
   function catOf(j) {
-    return j.noSponsor ? 'blocked' : (j.staffing ? 'agency' : (j.repost ? 'reposted' : 'fresh'));
+    if (j.staffing) return 'agency';
+    if (j.repost) return 'reposted';
+    if (j.noSponsor || (HAS_SPONSOR_DATA && !j.sponsor)) return 'nonsponsor';
+    return 'fresh';
   }
 
   function idKey(j) { return j.jobId ? 'id:' + j.jobId : null; }
@@ -1426,10 +1435,14 @@
         ['🔁', '<b>Reposts get their own tab</b> so recycled listings never clog the fresh ones.'],
         ['📄', '<b>Scan every page</b> with one click (up to 5).']
       ]],
-      ['Sponsors & visa', [
-        ['🟢', '<b>H-1B sponsor badge</b> with the employer’s FY2025 approval count.'],
-        ['🚫', '<b>Citizens-only / clearance flags</b> — Deep scan reads the full description to catch “cannot sponsor” even when it’s not on the card.'],
-        ['🏢', '<b>Agencies get their own tab</b> — staffing / recruiting firms are pulled out so Fresh shows direct employers only.']
+      ['Four tabs, one job each', [
+        ['⚡', '<b>Fresh</b> = the clean pile: a known H-1B sponsor, direct employer, new, not reposted.'],
+        ['🔁', '<b>Reposted</b> — recycled listings older than their date suggests.'],
+        ['🏢', '<b>Agencies</b> — staffing / recruiting firms, by name or “on behalf of our client”.'],
+        ['🚫', '<b>Not sponsors</b> — companies not in your list, plus citizens-only / clearance roles.']
+      ]],
+      ['Sponsors', [
+        ['🟢', '<b>H-1B sponsor badge</b> with the employer’s FY2025 approval count. Fresh is sponsors-only; everyone else goes to <b>Not sponsors</b>.']
       ]],
       ['Read without leaving', [
         ['📄', '<b>Read the job description</b> right in the panel — tap 📄 on any job Deep scan has opened.']
@@ -1558,7 +1571,7 @@
           <button class="ljs-tab" data-tab="fresh">Fresh</button>
           <button class="ljs-tab" data-tab="reposted">Reposted</button>
           <button class="ljs-tab" data-tab="agency">Agencies</button>
-          <button class="ljs-tab" data-tab="blocked">No sponsor</button>
+          <button class="ljs-tab" data-tab="nonsponsor">Not sponsors</button>
         </div>
         <div id="ljs-list">
           <div id="ljs-ready">
@@ -1703,7 +1716,7 @@
     // Copy the links of whatever is in the current tab, honouring filters.
     on('ljs-copy-links', 'click', () => {
       const opts = loadOpts();
-      const cur = { fresh: 1, reposted: 1, blocked: 1, agency: 1 }[opts.tab] ? opts.tab : 'fresh';
+      const cur = { fresh: 1, reposted: 1, nonsponsor: 1, agency: 1 }[opts.tab] ? opts.tab : 'fresh';
       const f = currentFilter().toLowerCase();
       const hay = j => (String(j.title || '') + ' ' + String(j.company || '') + ' ' +
         String(j.location || '')).toLowerCase();
@@ -1844,13 +1857,13 @@
     // Each job lands in exactly one tab. Priority: a visa blocker matters most
     // (you can't apply anyway), then agencies (indirect), then repost, else fresh.
     // So "Fresh" is direct-employer, genuinely-new roles only.
-    const tab = { fresh: 1, reposted: 1, blocked: 1, agency: 1 }[opts.tab] ? opts.tab : 'fresh';
-    const counts = { fresh: 0, reposted: 0, blocked: 0, agency: 0 };
+    const tab = { fresh: 1, reposted: 1, nonsponsor: 1, agency: 1 }[opts.tab] ? opts.tab : 'fresh';
+    const counts = { fresh: 0, reposted: 0, nonsponsor: 0, agency: 0 };
     base.forEach(j => counts[catOf(j)]++);
     const filtered = base.filter(j => catOf(j) === tab);
 
     // Tab labels carry their own counts, so the split is visible before clicking.
-    const tabLabel = { fresh: '⚡ Fresh', reposted: '🔁 Reposted', blocked: '🚫 No sponsor', agency: '🏢 Agencies' };
+    const tabLabel = { fresh: '⚡ Fresh', reposted: '🔁 Reposted', agency: '🏢 Agencies', nonsponsor: '🚫 Not sponsors' };
     const tabsEl = document.getElementById('ljs-tabs');
     if (tabsEl) {
       tabsEl.querySelectorAll('.ljs-tab').forEach(t => {
@@ -1860,22 +1873,20 @@
       });
     }
 
-    const kwMatches = jobs.filter(j => matchesKeyword(j.title).length > 0).length;
-    const sponsors = jobs.filter(j => j.sponsor).length;
+    const all = { fresh: 0, reposted: 0, agency: 0, nonsponsor: 0 };
+    jobs.forEach(j => all[catOf(j)]++);
     const unseen = jobs.filter(j => !seen.has(uidOf(j))).length;
-    const blocked = jobs.filter(j => j.noSponsor).length;
-    const reposts = jobs.filter(j => j.repost).length;
-    stats.textContent = (jobs.length - reposts) + ' fresh · ' + reposts + ' reposted · ' +
-      unseen + ' unseen · ' + sponsors + ' sponsors · ' + blocked + ' blocked · ' +
-      kwMatches + ' keyword matches' + (lastScanNote ? ' · ' + lastScanNote : '');
+    stats.textContent = all.fresh + ' fresh · ' + all.reposted + ' reposted · ' +
+      all.agency + ' agencies · ' + all.nonsponsor + ' not-sponsor · ' +
+      unseen + ' unseen' + (lastScanNote ? ' · ' + lastScanNote : '');
 
     if (filtered.length === 0) {
-      const emptyEmoji = { reposted: '🎉', blocked: '🎉', agency: '🎉', fresh: '🔍' };
+      const emptyEmoji = { reposted: '🎉', nonsponsor: '🎉', agency: '🎉', fresh: '🔍' };
       const emptyMsg = {
         reposted: 'No reposts here — all fresh!',
-        blocked: 'No visa-blocked roles 🎉',
+        nonsponsor: 'Every job here is a known sponsor 🎉',
         agency: 'No recruiters here — all direct employers 🎉',
-        fresh: 'No jobs match the current filters'
+        fresh: 'No known-sponsor roles yet — try Deep scan, or check the other tabs'
       };
       list.innerHTML = '<div class="ljs-empty"><span class="ljs-empty-emoji">' +
         (emptyEmoji[tab] || '🔍') + '</span>' + (emptyMsg[tab] || emptyMsg.fresh) + '</div>';
@@ -1888,9 +1899,9 @@
     if (tab === 'reposted') {
       html += '<div class="ljs-tab-note">Reposts — circulating longer than their dates suggest. ' +
         'Kept out of the Fresh list entirely.</div>';
-    } else if (tab === 'blocked') {
-      html += '<div class="ljs-tab-note">These say citizens-only / clearance / “no sponsorship” — ' +
-        'mostly found by Deep scan reading the full description.</div>';
+    } else if (tab === 'nonsponsor') {
+      html += '<div class="ljs-tab-note">Companies not in your H-1B sponsor list, plus roles that ' +
+        'say citizens-only / clearance / “no sponsorship”. Fresh shows known sponsors only.</div>';
     } else if (tab === 'agency') {
       html += '<div class="ljs-tab-note">Staffing / recruiting firms posting on behalf of a client — ' +
         'kept out of Fresh so it shows direct employers only.</div>';
