@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LinkedIn Job Sorter",
-  "version": "6.0",
+  "version": "6.1",
   "description": "Sorts LinkedIn job results newest-first, splits reposts into their own tab, badges known H-1B sponsors with approval counts, scores fit, tracks seen/applied, and self-tests its own logic.",
   "permissions": [
     "storage"

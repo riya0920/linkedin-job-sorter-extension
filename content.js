@@ -130,10 +130,13 @@
   function normName(s) {
     return String(s || '')
       .toLowerCase()
-      .replace(/&/g, ' and ')
-      .replace(/[.,'’`()\[\]|/\\-]/g, ' ')
+      .replace(/[&.,'’`()\[\]|/\\-]/g, ' ')   // USCIS drops punctuation incl. "&"
+      .replace(/\band\b/g, ' ')               // "Johnson & Johnson" -> "johnson johnson"
       .replace(LEGAL_SUFFIX, ' ')
       .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^the\s+/, '')                 // "THE BOSTON CONSULTING GROUP"
+      .replace(/\s+of$/, '')
       .trim();
   }
 
@@ -338,7 +341,16 @@
     'tiktok usds': 'tiktok u s data security',
     'tiktok': 'tiktok inc',
     'citadel securities': 'citadel americas services',
-    'citadel': 'citadel americas services'
+    'citadel': 'citadel americas services',
+    // Brands whose H-1B filing name differs enough that fuzzy matching misses.
+    'walmart': 'wal mart associates',
+    'citi': 'citibank',
+    'spacex': 'space exploration technologies',
+    'ey': 'ernst young',
+    'walt disney': 'disney',
+    'meta': 'meta platforms',
+    'alphabet': 'google',
+    'google deepmind': 'google'
   };
 
   // ─────────────────────────────────────────────────────────────────────────
