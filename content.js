@@ -279,6 +279,14 @@
 
   // A hint, not a guarantee: name matching across LinkedIn and the H-1B filings
   // is inherently fuzzy, so this can occasionally mislabel a similarly-named firm.
+  // Trailing sub-brand / division words: "Amazon Science", "Microsoft Research",
+  // "Google Ventures" — the parent is the actual H-1B filer.
+  const DIVISION_WORDS = new Set([
+    'science', 'sciences', 'ai', 'ml', 'research', 'labs', 'lab', 'ventures',
+    'venture', 'studio', 'studios', 'digital', 'cloud', 'robotics', 'analytics',
+    'technologies', 'technology', 'health', 'capital', 'x'
+  ]);
+
   function sponsorInfo(company) {
     if (!company) return null;
     const n = normName(company);
@@ -293,6 +301,18 @@
     // stricter matching above and can't be grabbed by a loose concat.
     if (n.indexOf(' ') === -1 && n.length >= 8 && SPONSOR_CONCAT.has(n)) {
       return { count: SPONSOR_CONCAT.get(n) };
+    }
+    // "<Brand> <division>" — LinkedIn shows a sub-brand ("Amazon Science",
+    // "Microsoft Research") that no filing carries. If the trailing word is a
+    // division qualifier, match on the brand in front of it.
+    const nt = n.split(' ');
+    if (nt.length >= 2 && DIVISION_WORDS.has(nt[nt.length - 1])) {
+      const head = nt.slice(0, -1).join(' ');
+      if (head.length >= 3) {
+        if (SPONSOR_INDEX.has(head)) return { count: SPONSOR_INDEX.get(head) };
+        const pm = prefixMatch(head);
+        if (pm) return pm;
+      }
     }
     // Fall back to the brand -> legal-name alias table.
     const alias = NAME_ALIASES[n] || NAME_ALIASES[c];
