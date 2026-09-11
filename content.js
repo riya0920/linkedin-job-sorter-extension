@@ -158,7 +158,9 @@
     'united', 'general', 'international', 'global', 'data', 'tech', 'systems',
     'solutions', 'services', 'health', 'medical', 'university', 'college',
     'city', 'state', 'new', 'north', 'south', 'east', 'west', 'the', 'and',
-    'management', 'partners', 'associates', 'consulting', 'research', 'digital'
+    'management', 'partners', 'associates', 'consulting', 'consultants',
+    'consultancy', 'services', 'solutions', 'technologies', 'labs', 'inc',
+    'llc', 'research', 'digital'
   ]);
 
   // A single-token company only counts as a sponsor (via a collapsed core or a
@@ -220,6 +222,26 @@
   // stub sponsors.js), the sponsor split is meaningless, so we skip it.
   const HAS_SPONSOR_DATA = SPONSOR_INDEX.size > 0;
 
+  // Space-free form of a sponsor name, for when LinkedIn writes a multi-word
+  // employer as one word: "JPMorganChase" vs "JPMORGAN CHASE AND CO". Connector
+  // and suffix words are dropped so both collapse to "jpmorganchase".
+  function concatKey(s) {
+    return String(s || '')
+      .replace(/\b(and|of|the|for|inc|llc|corp|co|ltd|group|holdings?|the)\b/g, '')
+      .replace(/[^a-z0-9]/g, '');
+  }
+  const SPONSOR_CONCAT = (function () {
+    const map = new Map();
+    SPONSOR_INDEX.forEach((count, key) => {
+      const ck = concatKey(key);
+      // Skip generic words a multi-word name can collapse to ("consulting group"
+      // -> "consulting"), so a company literally named that can't false-match.
+      if (ck.length < 8 || TOO_GENERIC.has(ck)) return;
+      if (!map.has(ck) || map.get(ck) < count) map.set(ck, count);
+    });
+    return map;
+  })();
+
   // LinkedIn shows the brand ("Amazon"); H-1B filings show the legal entity
   // ("AMAZON COM SERVICES LLC"). Exact matching misses every one of those, so
   // a company also matches when its tokens are a PREFIX of a filing's tokens.
@@ -266,6 +288,12 @@
     if (SPONSOR_INDEX.has(c)) return { count: SPONSOR_INDEX.get(c) };
     const direct = prefixMatch(n) || prefixMatch(c);
     if (direct) return direct;
+    // Space-dropped match: only when LinkedIn gave a single run-on word (e.g.
+    // "JPMorganChase"), so a real multi-word employer with spaces still uses the
+    // stricter matching above and can't be grabbed by a loose concat.
+    if (n.indexOf(' ') === -1 && n.length >= 8 && SPONSOR_CONCAT.has(n)) {
+      return { count: SPONSOR_CONCAT.get(n) };
+    }
     // Fall back to the brand -> legal-name alias table.
     const alias = NAME_ALIASES[n] || NAME_ALIASES[c];
     if (alias) {
