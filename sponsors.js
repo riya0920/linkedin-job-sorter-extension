@@ -1,4 +1,4 @@
-// Sponsor list — OPTIONAL. This stub ships EMPTY so the extension loads cleanly.
+// Sponsor list: OPTIONAL. This stub ships EMPTY so the extension loads cleanly.
 //
 // The extension can badge employers that are known H-1B visa sponsors, with
 // their approval counts. To enable that, replace this file with your own list

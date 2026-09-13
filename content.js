@@ -2,14 +2,14 @@
 // Automatically runs on LinkedIn job search pages
 //
 // Ordering is ALWAYS newest-first. The fit score is shown as a badge, never
-// used to re-order — a strong match that is three days old still sorts below
+// used to re-order; a strong match that is three days old still sorts below
 // something posted an hour ago.
 
 (function () {
   'use strict';
 
   // ─────────────────────────────────────────────────────────────────────────
-  // CONFIG — edit these lists freely, they are plain strings.
+  // CONFIG: edit these lists freely, they are plain strings.
   // ─────────────────────────────────────────────────────────────────────────
   const KEYWORDS = [
     'machine learning', 'ml engineer', 'ai engineer', 'data scientist',
@@ -117,7 +117,7 @@
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // SPONSOR INDEX — built once from sponsors.js (your h1b-job-alert list).
+  // SPONSOR INDEX: built once from sponsors.js (your h1b-job-alert list).
   // ─────────────────────────────────────────────────────────────────────────
   const LEGAL_SUFFIX = /\b(inc|inc\.|llc|l\.l\.c|ltd|limited|corp|corporation|co|company|plc|pbc|gmbh|s\.a|sa|ag|nv|bv|ab|oy|pte|pty|llp|lp|holdings|holding)\b/g;
   // Filler words dropped only to build a secondary alias, so "6Sense Insights"
@@ -154,7 +154,7 @@
     return c || normName(s);
   }
 
-  // Words too generic to identify an employer on their own — "Bank" must not
+  // Words too generic to identify an employer on their own: "Bank" must not
   // match "Bank of America", nor "Capital" match "Capital One".
   const TOO_GENERIC = new Set([
     'bank', 'group', 'capital', 'first', 'american', 'america', 'national',
@@ -178,7 +178,7 @@
       : (typeof LJS_SPONSOR_COMPANIES !== 'undefined')
         ? LJS_SPONSOR_COMPANIES.map(n => [n, 0]) : [];
     // First pass: how many DISTINCT full names collapse to each core key.
-    // A core shared by several different employers is ambiguous — "access"
+    // A core shared by several different employers is ambiguous: "access"
     // came from "ACCESS GLOBAL GROUP" (global+group are both filler) and would
     // then badge any "Access …" firm.
     const coreSources = new Map();
@@ -196,7 +196,7 @@
       const add = k => {
         if (!k) return;
         const toks = k.split(' ').filter(Boolean);
-        // Stripping suffixes can reduce a name to one generic word —
+        // Stripping suffixes can reduce a name to one generic word:
         // "NATIONAL SYSTEMS AMERICA L.P." → "national". Never index that.
         if (toks.length === 1 && TOO_GENERIC.has(toks[0])) return;
         if (!map.has(k) || map.get(k) < count) map.set(k, count);
@@ -269,7 +269,7 @@
     for (const cand of bucket) {
       if (cand.toks.length < toks.length) continue;
       // A 1-token needle must fully name the candidate OR the candidate must be
-      // a real sponsor by volume — otherwise "access" grabs any "Access …" firm.
+      // a real sponsor by volume; otherwise "access" grabs any "Access …" firm.
       if (toks.length === 1 && cand.toks.length > 1 && cand.count < MIN_1TOKEN_PREFIX) continue;
       let ok = true;
       for (let i = 0; i < toks.length; i++) {
@@ -283,7 +283,7 @@
   // A hint, not a guarantee: name matching across LinkedIn and the H-1B filings
   // is inherently fuzzy, so this can occasionally mislabel a similarly-named firm.
   // Trailing sub-brand / division words: "Amazon Science", "Microsoft Research",
-  // "Google Ventures" — the parent is the actual H-1B filer.
+  // "Google Ventures": the parent is the actual H-1B filer.
   const DIVISION_WORDS = new Set([
     'science', 'sciences', 'ai', 'ml', 'research', 'labs', 'lab', 'ventures',
     'venture', 'studio', 'studios', 'digital', 'cloud', 'robotics', 'analytics',
@@ -305,7 +305,7 @@
     if (n.indexOf(' ') === -1 && n.length >= 8 && SPONSOR_CONCAT.has(n)) {
       return { count: SPONSOR_CONCAT.get(n) };
     }
-    // "<Brand> <division>" — LinkedIn shows a sub-brand ("Amazon Science",
+    // "<Brand> <division>": LinkedIn shows a sub-brand ("Amazon Science",
     // "Microsoft Research") that no filing carries. If the trailing word is a
     // division qualifier, match on the brand in front of it.
     const nt = n.split(' ');
@@ -449,7 +449,7 @@
   }
 
   // Strong "this is a recruiter posting for a client" phrases. Only checked
-  // against the description Deep scan captured — kept tight to avoid tagging a
+  // against the description Deep scan captured, kept tight to avoid tagging a
   // direct employer that merely mentions clients.
   const RECRUITER_DESC_RE = /\b(on behalf of (?:our|a|their) client|our client is|our client,|our client is seeking|we are a (?:staffing|recruit\w*|talent)\b|staffing agency|recruitment agency|recruiting firm|is a (?:staffing|recruiting) (?:agency|firm|company))\b/i;
 
@@ -459,12 +459,12 @@
     return isStaffing(j.company) || RECRUITER_DESC_RE.test(String(j.desc || ''));
   }
 
-  // "Reposted", "Re-posted", "Reposted 3 days ago" — anywhere on the card.
+  // "Reposted", "Re-posted", "Reposted 3 days ago", anywhere on the card.
   const REPOST_RE = /\bre-?\s?posted\b/i;
 
   function isRepost(job) {
     // Set by a Deep scan, which reads the job detail panel. LinkedIn does not
-    // print "Reposted" on the result cards at all — only in that panel — so the
+    // print "Reposted" on the result cards at all, only in that panel, so the
     // card text alone can never reveal it.
     if (job.repostDetail) return true;
     return REPOST_RE.test(String(job.timeText || '') + ' ' + String(job.raw || ''));
@@ -518,7 +518,7 @@
 
   // The narrowest element containing every job card. On LinkedIn the detail
   // pane lives INSIDE [componentkey="SearchResultsMainContent"] alongside the
-  // list, so excluding the whole of main would hide the detail pane as well —
+  // list, so excluding the whole of main would hide the detail pane as well,
   // and detection could never succeed. Only the card list is excluded.
   function resultsListEl() {
     const main = mainEl();
@@ -532,7 +532,7 @@
   }
 
   // A bare .click() fires only a click event. React/LinkedIn listen for the
-  // pointer/mouse sequence, so a plain click silently does nothing — which is
+  // pointer/mouse sequence, so a plain click silently does nothing, which is
   // why every deep-scanned job timed out and was recorded as "not a repost".
   function realClick(el) {
     const block = e => e.preventDefault();      // stop the <a> navigating away
@@ -604,7 +604,7 @@
     return bits.join(' | ').slice(0, 240);
   }
 
-  // Fuller text of the open detail pane — the job description plus its header.
+  // Fuller text of the open detail pane, the job description plus its header.
   // Same exclusion logic as detailProbe (drop cards, page chrome, our panel),
   // just a much larger cap so we keep the whole "About the job" block.
   function detailText(cap) {
@@ -628,7 +628,7 @@
   }
 
   // Does the pane currently mention this string? The company name is the most
-  // reliable marker — unlike the title, LinkedIn does not decorate it.
+  // reliable marker; unlike the title, LinkedIn does not decorate it.
   function paneMentions(needle, paneNow) {
     const n = String(needle || '').toLowerCase().trim().slice(0, 28);
     if (n.length < 3) return false;
@@ -636,7 +636,7 @@
   }
 
   // Scan the whole page minus the job cards, the page chrome and our own panel.
-  // What remains is effectively the detail pane, wherever LinkedIn puts it —
+  // What remains is effectively the detail pane, wherever LinkedIn puts it;
   // no container-selector guessing required.
   function detailSaysReposted() {
     return textSaysReposted(document.body, excludedRoots());
@@ -646,7 +646,7 @@
   // days ago", "Just now", "Posted on …").
   const AGE_MARKER_RE = /\bre-?\s?posted\b|\bposted on\b|\bjust now\b|\bmoments?\s+ago\b|\b\d+\s+(second|minute|hour|day|week|month)s?\s+ago\b/i;
 
-  // Is the OPEN job a repost? Reads only the job's own posted-date line — the
+  // Is the OPEN job a repost? Reads only the job's own posted-date line, the
   // FIRST age marker in document order, which is the detail header. LinkedIn's
   // "similar jobs" sidebar is full of reposts but sits far below the header, so
   // scanning the whole pane (or a capped read) would false-positive on it.
@@ -665,18 +665,18 @@
   }
 
   // Returns 'citizens only' | 'no sponsorship' | 'clearance' | null.
-  // A negative always wins — the safer read for an applicant who needs sponsorship.
+  // A negative always wins, the safer read for an applicant who needs sponsorship.
   // Pull a pay figure out of card/description text, e.g. "$65K/yr - $80K/yr",
   // "$120.8K/yr – $181.2K/yr", "$35/hr - $45/hr", "$150,000 a year".
-  const SALARY_RE = /\$\s?\d[\d,.]*\s?[KkMm]?(?:\s?\/\s?(?:yr|year|hr|hour|mo|month|wk|week))?(?:\s*(?:-|–|—|to)\s*\$?\s?\d[\d,.]*\s?[KkMm]?(?:\s?\/\s?(?:yr|year|hr|hour|mo|month|wk|week))?)?(?:\s?(?:a|per)\s?(?:year|yr|hour|hr|month|mo))?/;
+  const SALARY_RE = /\$\s?\d[\d,.]*\s?[KkMm]?(?:\s?\/\s?(?:yr|year|hr|hour|mo|month|wk|week))?(?:\s*(?:-|–|\u2014|to)\s*\$?\s?\d[\d,.]*\s?[KkMm]?(?:\s?\/\s?(?:yr|year|hr|hour|mo|month|wk|week))?)?(?:\s?(?:a|per)\s?(?:year|yr|hour|hr|month|mo))?/;
   function parseSalary(text) {
     const m = String(text || '').match(SALARY_RE);
     if (!m) return '';
-    return m[0].replace(/\s*(-|–|—|to)\s*/, ' – ').replace(/\s+/g, ' ').trim();
+    return m[0].replace(/\s*(-|–|\u2014|to)\s*/, ' – ').replace(/\s+/g, ' ').trim();
   }
 
   function noSponsorSignal(job) {
-    // Include the description when Deep scan captured it — that's where
+    // Include the description when Deep scan captured it; that's where
     // "we are unable to sponsor" / "must be a US citizen" usually hides.
     const text = String(job.title || '') + ' · ' + String(job.raw || '') +
       ' · ' + String(job.desc || '');
@@ -686,7 +686,7 @@
     return null;
   }
 
-  // 0-100. Display only — never feeds the sort order.
+  // 0-100. Display only; never feeds the sort order.
   function fitScore(job, now) {
     let s = SCORE.base;
     s += Math.min(matchesKeyword(job.title).length * SCORE.keyword, SCORE.keywordCap);
@@ -714,8 +714,8 @@
       c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
-  // LinkedIn renders a title twice — a visible aria-hidden copy plus a
-  // screen-reader copy — so anchor.textContent yields "Junior AI EngineerJunior
+  // LinkedIn renders a title twice: a visible aria-hidden copy plus a
+  // screen-reader copy; so anchor.textContent yields "Junior AI EngineerJunior
   // AI Engineer". Collapse the repeat back to a single copy.
   function dedupeDoubled(s) {
     let t = String(s || '').replace(/\s+/g, ' ').trim();
@@ -730,7 +730,7 @@
       const h = t.length / 2;
       if (t.slice(0, h).trim() === t.slice(h).trim()) return t.slice(0, h).trim();
     }
-    // "AbcAbc extra" — the doubled part repeated back-to-back.
+    // "AbcAbc extra": the doubled part repeated back-to-back.
     const half = t.match(/^(.{4,}?)\1(.*)$/);
     if (half) return (half[1] + half[2]).replace(/\s+/g, ' ').trim();
     // The second copy can be TRUNCATED relative to the first, e.g.
@@ -743,7 +743,7 @@
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // SORTING — newest first, EXCEPT reposts, which are always pushed to the end.
+  // SORTING: newest first, EXCEPT reposts, which are always pushed to the end.
   // A repost's date describes the re-listing, not the vacancy, so it would
   // otherwise jump the queue over genuinely fresh postings.
   // ─────────────────────────────────────────────────────────────────────────
@@ -786,7 +786,7 @@
   const DEFAULT_OPTS = {
     hideSeen: false, hideApplied: false, hideNegative: false,
     hideStaffing: false, hideNoSponsor: false,
-    tab: 'fresh'            // 'fresh' | 'reposted' — two separate lists
+    tab: 'fresh'            // 'fresh' | 'reposted': two separate lists
   };
 
   function loadOpts() {
@@ -811,7 +811,7 @@
       }
       delete j.timeSeconds;
     }
-    // Fields added after the first release — recompute rather than lose them.
+    // Fields added after the first release: recompute rather than lose them.
     // Always recompute: the sponsor list grows, so previously-unmatched rows
     // must get a second chance rather than staying stale forever.
     const sp = sponsorInfo(j.company);
@@ -827,7 +827,7 @@
     }
 
     // Always recompute these too. Storing them once meant a row saved as
-    // repost:false could never be corrected when detection improved — which is
+    // repost:false could never be corrected when detection improved, which is
     // exactly how a repost ended up sitting in the Fresh tab.
     j.staffing = isAgencyJob(j);
     j.repost = isRepost(j);
@@ -852,8 +852,8 @@
   // Which tab a job belongs to. One job → one tab, by priority:
   // agency/recruiter → repost → not-a-sponsor → fresh. So FRESH is the clean
   // pile: a KNOWN H-1B sponsor, direct employer, not reposted, not visa-blocked.
-  // "nonsponsor" = the role is visa-blocked (citizens-only/clearance) OR — when
-  // a sponsor list is loaded — the company isn't in it.
+  // "nonsponsor" = the role is visa-blocked (citizens-only/clearance) OR, when
+  // a sponsor list is loaded, the company isn't in it.
   function catOf(j) {
     if (j.staffing) return 'agency';
     if (j.repost) return 'reposted';
@@ -862,8 +862,8 @@
   }
 
   function idKey(j) { return j.jobId ? 'id:' + j.jobId : null; }
-  // Normalised so invisible differences — dash type, double spaces, an
-  // "(Verified job)" leftover — don't split one role into two rows.
+  // Normalised so invisible differences, dash type, double spaces, an
+  // "(Verified job)" leftover, don't split one role into two rows.
   function normId(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
   // Include location so the SAME title at the same company in two different
   // cities stays two roles, while a true duplicate (same city) collapses.
@@ -920,7 +920,7 @@
       }
       // Refresh the fields that come straight off the DOM. Without this a row
       // keeps whatever text the FIRST scan captured, so a rescan could never
-      // correct a misread — which made every scraping fix look like a no-op.
+      // correct a misread, which made every scraping fix look like a no-op.
       if (j.title) prev.title = j.title;
       if (j.raw) prev.raw = j.raw;
       if (j.timeText) prev.timeText = j.timeText;
@@ -1069,10 +1069,10 @@
 
   // The clickable element is often NOT the whole row: LinkedIn puts the footer
   // line ("Reposted", "Easy Apply", the date) as a SIBLING of it. Widen to the
-  // enclosing row so that text is in scope — but never into a container holding
+  // enclosing row so that text is in scope, but never into a container holding
   // more than one job, or every row would inherit its neighbours' labels.
   // Climbs while the ancestor still describes ONE job. Relying on closest('li')
-  // was too fragile — LinkedIn's newer markup does not always use list items.
+  // was too fragile; LinkedIn's newer markup does not always use list items.
   function scanRootFor(card) {
     let best = card, el = card;
     for (let i = 0; i < 5; i++) {
@@ -1101,7 +1101,7 @@
     });
 
     // Every text node, each kept as its own fragment. textContent would glue
-    // neighbours together — "CA" + "Reposted 2 hours ago" becomes "CAReposted",
+    // neighbours together: "CA" + "Reposted 2 hours ago" becomes "CAReposted",
     // which kills the \b in every pattern that scans this text.
     const parts = [];
     const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
@@ -1122,7 +1122,7 @@
       }
     }
 
-    // Also drop anything already contained in the title — otherwise LinkedIn's
+    // Also drop anything already contained in the title; otherwise LinkedIn's
     // screen-reader copy of the title gets picked up as the company name.
     const titleLc = title.toLowerCase();
     const rest = texts.filter(t => {
@@ -1140,7 +1140,7 @@
       ? (rest[1] || rest[0]) : (rest[1] || '');
 
     // `raw` is scanned for "Reposted" and work-authorisation wording, so it must
-    // see the WHOLE card — LinkedIn hides plenty of visible text behind
+    // see the WHOLE card; LinkedIn hides plenty of visible text behind
     // aria-hidden="true" (with an sr-only twin), puts dates in <time>/<div>,
     // and sometimes states the fact only in an aria-label.
     scope.querySelectorAll('[aria-label]').forEach(el => {
@@ -1171,7 +1171,7 @@
       if (count === last) stable++; else stable = 0;
       last = count;
       // A page mid-load briefly holds one or two cards, and "stable" would fire
-      // on that — which is how a deep scan ended up reading a single job.
+      // on that, which is how a deep scan ended up reading a single job.
       // Keep waiting for a plausible page unless we have genuinely waited.
       const enough = count >= 5 || rounds > 12;
       if ((stable >= 2 && enough) || rounds++ > 30) {
@@ -1274,7 +1274,7 @@
           const urlOk = direct ? (id === direct) : (id && id !== before);
           let arrived;
           if (deep) {
-            // The URL alone is not enough — LinkedIn changes it before the pane
+            // The URL alone is not enough; LinkedIn changes it before the pane
             // re-renders, so reading then returns the PREVIOUS job's panel.
             // Accept any of: the pane text changed, it shows this title, or the
             // URL matched and enough time has passed (a safety net, so a fussy
@@ -1282,7 +1282,7 @@
             const paneNow = detailProbe();
             // ONLY accept when the pane names THIS job. Weaker signals were
             // both wrong: "the pane changed" fires on a "Loading…" placeholder,
-            // and a URL-plus-delay fallback reads whatever is on screen — which
+            // and a URL-plus-delay fallback reads whatever is on screen, which
             // is how one job inherited the previous job's "Reposted" line.
             arrived = paneMentions(info.company, paneNow) ||
                       paneMentions(dedupeDoubled(info.title), paneNow) ||
@@ -1292,7 +1292,7 @@
           }
           if (arrived) {
             if (deep) {
-              // Retry the confirm read a few times — the pane often shows the
+              // Retry the confirm read a few times; the pane often shows the
               // "Are these results helpful?" strip for a beat before the job
               // content lands. Only trust the pane's repost when confirmed;
               // otherwise a stale/empty pane would assign a wrong verdict.
@@ -1319,12 +1319,12 @@
           }
           if (Date.now() - started > (deep ? DEEP_TIMEOUT : LINK_TIMEOUT)) {
             // The pane never confirmed this job, so its repost state is unknown
-            // rather than false — recorded as such, and counted for the summary.
+            // rather than false, recorded as such, and counted for the summary.
             // Timed out without the pane ever naming this job. Record it as
             // UNKNOWN rather than guessing 'not a repost' from a panel that
             // may still be loading, or showing the previous job.
             if (deep) { deepUnconfirmed++; record(direct, null, 'UNCONFIRMED: ' + detailProbe()); }
-            // Never fall back to whatever id happens to sit in the URL — that is
+            // Never fall back to whatever id happens to sit in the URL; that is
             // how a row ends up opening the previous job.
             else record(null);
             return;
@@ -1381,7 +1381,7 @@
   // UI
   // ─────────────────────────────────────────────────────────────────────────
 
-  // Null-safe event binding — a missing button never throws.
+  // Null-safe event binding: a missing button never throws.
   function on(id, evt, fn) {
     const el = document.getElementById(id);
     if (el) el.addEventListener(evt, fn);
@@ -1465,7 +1465,7 @@
       '<span class="ljs-st-pill ' + (failed ? 'bad' : 'ok') + '">' +
       passed + '/' + results.length + ' passed</span></div>';
     html += '<div style="padding:0 10px 8px;font-size:11px;color:#94a3b8;">' +
-      (failed ? failed + ' check(s) failed — tell Claude which.' :
+      (failed ? failed + ' check(s) failed. Tell Claude which.' :
        'All core logic verified' + esc(ver) + '.') +
       ' Click a tab to return to jobs.</div>';
 
@@ -1483,7 +1483,7 @@
     if (btn) flash('ljs-selftest', failed ? '✕ ' + failed + ' failed' : '✓ all passed', '🧪 Self-test');
   }
 
-  // A friendly, in-panel feature list — the "what can this do?" view.
+  // A friendly, in-panel feature list: the "what can this do?" view.
   function renderFeatures() {
     const list = document.getElementById('ljs-list');
     if (!list) return;
@@ -1497,18 +1497,18 @@
       ]],
       ['Four tabs, one job each', [
         ['⚡', '<b>Fresh</b> = the clean pile: a known H-1B sponsor, direct employer, new, not reposted.'],
-        ['🔁', '<b>Reposted</b> — recycled listings older than their date suggests.'],
-        ['🏢', '<b>Agencies</b> — staffing / recruiting firms, by name or “on behalf of our client”.'],
-        ['🚫', '<b>Not sponsors</b> — companies not in your list, plus citizens-only / clearance roles.']
+        ['🔁', '<b>Reposted</b>: recycled listings older than their date suggests.'],
+        ['🏢', '<b>Agencies</b>: staffing / recruiting firms, by name or “on behalf of our client”.'],
+        ['🚫', '<b>Not sponsors</b>: companies not in your list, plus citizens-only / clearance roles.']
       ]],
       ['Sponsors', [
         ['🟢', '<b>H-1B sponsor badge</b> with the employer’s FY2025 approval count. Fresh is sponsors-only; everyone else goes to <b>Not sponsors</b>.']
       ]],
       ['Read without leaving', [
-        ['📄', '<b>Read the job description</b> right in the panel — tap 📄 on any job Deep scan has opened.']
+        ['📄', '<b>Read the job description</b> right in the panel; tap 📄 on any job Deep scan has opened.']
       ]],
       ['Your workflow', [
-        ['✓', '<b>Seen & applied tracking</b> — mark jobs and hide what you’ve done.'],
+        ['✓', '<b>Seen & applied tracking</b>: mark jobs and hide what you’ve done.'],
         ['🎯', '<b>Keyword highlights</b> for ML / AI / new-grad roles; hide senior roles.'],
         ['🔗', '<b>Copy links or export CSV</b> to drop into your tracker.']
       ]],
@@ -1556,7 +1556,7 @@
     html += '</div>';
     if (linked) html += '<a class="ljs-desc-open" href="' + esc(job.link) + '" target="_blank" rel="noopener noreferrer">Open on LinkedIn ↗</a>';
     html += '<div class="ljs-desc-body">' + esc(job.desc || '(no description captured)') + '</div>';
-    html += '<div class="ljs-desc-foot">Captured during Deep scan — may be shortened where LinkedIn hides text behind “Show more”.</div>';
+    html += '<div class="ljs-desc-foot">Captured during Deep scan; may be shortened where LinkedIn hides text behind “Show more”.</div>';
     html += '</div>';
     list.innerHTML = html;
     const back = document.getElementById('ljs-desc-back');
@@ -1599,7 +1599,7 @@
           <div id="ljs-searchrow">
             <input id="ljs-filter" placeholder="Search title, company, location…" />
             <button id="ljs-start" class="ljs-primary">Scan</button>
-            <button id="ljs-deep" class="ljs-secondary" title="Opens each job to read its detail panel — the only place LinkedIn shows 'Reposted'. Slower.">🔁 Deep</button>
+            <button id="ljs-deep" class="ljs-secondary" title="Opens each job to read its detail panel; the only place LinkedIn shows 'Reposted'. Slower.">🔁 Deep</button>
           </div>
           <div id="ljs-drawer" class="ljs-hidden">
             <div class="ljs-drawer-label">Hide from the list</div>
@@ -1637,7 +1637,7 @@
           <div id="ljs-ready">
             <div class="ljs-ready-emoji">◆</div>
             <div class="ljs-ready-title">Ready when you are</div>
-            <div class="ljs-ready-sub">Set your LinkedIn filters, then hit <b>Scan</b>. Sorted newest first — the number badge is a fit score, not the order.</div>
+            <div class="ljs-ready-sub">Set your LinkedIn filters, then hit <b>Scan</b>. Sorted newest first; the number badge is a fit score, not the order.</div>
             <div class="ljs-ready-hint">Tip: <b>🔁 Deep</b> opens each job to catch reposts · <b>Alt+J</b> toggles this panel</div>
           </div>
         </div>
@@ -1647,14 +1647,14 @@
 
     document.getElementById('ljs-close').onclick = () => panel.classList.add('ljs-collapsed');
 
-    // Filter drawer (⚙) — slides open under the search row.
+    // Filter drawer (⚙): slides open under the search row.
     on('ljs-filters-toggle', 'click', () => {
       const d = document.getElementById('ljs-drawer');
       if (d) d.classList.toggle('ljs-hidden');
       document.getElementById('ljs-filters-toggle').classList.toggle('active', d && !d.classList.contains('ljs-hidden'));
     });
 
-    // Overflow menu (⋯) — every secondary action lives here.
+    // Overflow menu (⋯): every secondary action lives here.
     const menu = document.getElementById('ljs-menu');
     const closeMenu = () => { if (menu) menu.classList.add('ljs-hidden'); };
     on('ljs-menu-toggle', 'click', e => {
@@ -1758,7 +1758,7 @@
       // Section 3: unmatched company names.
       const counts = new Map();
       jobs.filter(j => !j.sponsor).forEach(j => {
-        const c = (j.company || '').trim() || '(BLANK — company not scraped)';
+        const c = (j.company || '').trim() || '(BLANK: company not scraped)';
         counts.set(c, (counts.get(c) || 0) + 1);
       });
       const rows = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
@@ -1783,11 +1783,11 @@
       const links = loadJobs()
         .filter(j => catOf(j) === cur && (!f || hay(j).includes(f)) && j.link)
         .map(j => j.link);
-      flash('ljs-copy-links', links.length ? '✓ ' + links.length : '— none', '🔗 Links');
+      flash('ljs-copy-links', links.length ? '✓ ' + links.length : '- none', '🔗 Links');
       if (links.length) navigator.clipboard.writeText(links.join('\n')).catch(() => {});
     });
 
-    // Built-in self-test — the in-panel version of the regression suites.
+    // Built-in self-test: the in-panel version of the regression suites.
     on('ljs-selftest', 'click', () => renderSelfTest());
 
     // Features / about view.
@@ -1854,7 +1854,7 @@
         existing.length + ' jobs from previous pages · hit Scan to add this page';
     }
 
-    // Scanning is deliberately manual — nothing runs until Rescan is clicked.
+    // Scanning is deliberately manual; nothing runs until Rescan is clicked.
   }
 
   function currentFilter() {
@@ -1943,10 +1943,10 @@
     if (filtered.length === 0) {
       const emptyEmoji = { reposted: '🎉', nonsponsor: '🎉', agency: '🎉', fresh: '🔍' };
       const emptyMsg = {
-        reposted: 'No reposts here — all fresh!',
+        reposted: 'No reposts here, all fresh!',
         nonsponsor: 'Every job here is a known sponsor 🎉',
-        agency: 'No recruiters here — all direct employers 🎉',
-        fresh: 'No known-sponsor roles yet — try Deep scan, or check the other tabs'
+        agency: 'No recruiters here, all direct employers 🎉',
+        fresh: 'No known-sponsor roles yet; try Deep scan, or check the other tabs'
       };
       list.innerHTML = '<div class="ljs-empty"><span class="ljs-empty-emoji">' +
         (emptyEmoji[tab] || '🔍') + '</span>' + (emptyMsg[tab] || emptyMsg.fresh) + '</div>';
@@ -1957,13 +1957,13 @@
     let lastGroup = '';
 
     if (tab === 'reposted') {
-      html += '<div class="ljs-tab-note">Reposts — circulating longer than their dates suggest. ' +
+      html += '<div class="ljs-tab-note">Reposts: circulating longer than their dates suggest. ' +
         'Kept out of the Fresh list entirely.</div>';
     } else if (tab === 'nonsponsor') {
       html += '<div class="ljs-tab-note">Companies not in your H-1B sponsor list, plus roles that ' +
         'say citizens-only / clearance / “no sponsorship”. Fresh shows known sponsors only.</div>';
     } else if (tab === 'agency') {
-      html += '<div class="ljs-tab-note">Staffing / recruiting firms posting on behalf of a client — ' +
+      html += '<div class="ljs-tab-note">Staffing / recruiting firms posting on behalf of a client, ' +
         'kept out of Fresh so it shows direct employers only.</div>';
     }
 
@@ -1987,7 +1987,7 @@
       const linked = !!j.link && /^https:\/\/www\.linkedin\.com\/jobs\/view\/\d+\/$/.test(j.link);
       const attrs = linked
         ? `href="${esc(j.link)}" target="_blank" rel="noopener noreferrer"`
-        : `title="No link captured for this job — rescan to resolve it"`;
+        : `title="No link captured for this job; rescan to resolve it"`;
 
       const cls = ['ljs-job'];
       if (isMatch) cls.push('ljs-keyword-match');
@@ -2005,10 +2005,10 @@
           </div>
           <div class="ljs-job-company">
             ${esc(j.company)}
-            ${j.noSponsor ? `<span class="ljs-nosponsor-tag" title="This card's text says so — check the full description to confirm">🚫 ${esc(j.noSponsor)}</span>` : ''}
+            ${j.noSponsor ? `<span class="ljs-nosponsor-tag" title="This card's text says so; check the full description to confirm">🚫 ${esc(j.noSponsor)}</span>` : ''}
             ${j.sponsor ? `<span class="ljs-sponsor-tag" title="${j.sponsorCount ? j.sponsorCount + ' new H-1B approvals in FY2025' : 'Appears in your H-1B employer data'}">🟢 sponsor${j.sponsorCount ? ' ' + j.sponsorCount : ''}</span>` : ''}
             ${j.staffing ? '<span class="ljs-agency-tag">agency</span>' : ''}
-            ${j.repost ? '<span class="ljs-repost-tag" title="Reposted — circulating longer than the date suggests">repost</span>' : ''}
+            ${j.repost ? '<span class="ljs-repost-tag" title="Reposted: circulating longer than the date suggests">repost</span>' : ''}
           </div>
           ${(j.location || j.salary) ? `<div class="ljs-job-sub">
             ${j.location ? `<span class="ljs-loc">📍 ${esc(j.location)}</span>` : ''}
@@ -2018,8 +2018,8 @@
             <span class="ljs-job-location"></span>
             <span class="ljs-meta-right">
               ${j.desc ? `<button class="ljs-desc-btn" data-uid="${esc(uid)}" title="Read the job description">📄</button>` : ''}
-              <button class="ljs-applied-btn ${isApplied ? 'on' : ''}" data-uid="${esc(uid)}" title="${isApplied ? 'Applied — click to undo' : 'Mark as applied'}">✓</button>
-              <span class="ljs-score-badge" style="background:${sc.bg};color:${sc.color};" title="Fit score (display only — order is always newest first)">${score}</span>
+              <button class="ljs-applied-btn ${isApplied ? 'on' : ''}" data-uid="${esc(uid)}" title="${isApplied ? 'Applied, click to undo' : 'Mark as applied'}">✓</button>
+              <span class="ljs-score-badge" style="background:${sc.bg};color:${sc.color};" title="Fit score (display only; order is always newest first)">${score}</span>
               <span class="ljs-time-badge" style="background:${tc.bg};color:${tc.color};">${esc(fmtTime(age))}</span>
             </span>
           </div>
@@ -2045,7 +2045,7 @@
     let page = 1, totalAdded = 0, deepMissTotal = 0, deepUnconfTotal = 0, deepDoneTotal = 0;
 
     function scanOne() {
-      showProgress(0, 1, (deep ? 'Deep scan — opening each job on page ' : 'Loading page ') + page + '...');
+      showProgress(0, 1, (deep ? 'Deep scan: opening each job on page ' : 'Loading page ') + page + '...');
       scrapeAndCollect((newJobs, misses, unconfirmed, done) => {
         deepDoneTotal += (done || 0);
         deepMissTotal += (misses || 0);
@@ -2103,7 +2103,7 @@
     }, 1000);
   }
 
-  // Re-run on LinkedIn SPA navigation (debounced — this fires on every DOM change).
+  // Re-run on LinkedIn SPA navigation (debounced: this fires on every DOM change).
   let lastUrl = location.href;
   let navTimer = null;
   const observer = new MutationObserver(() => {
