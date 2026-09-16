@@ -9,20 +9,20 @@ const GEMINI_HOST = 'https://generativelanguage.googleapis.com/v1beta/models/';
 // The classification rules, verbatim to the user's intent.
 const SYSTEM_PROMPT = [
   'You decide whether each company sponsors H-1B visas, for a job seeker who needs sponsorship.',
-  'For every item (a company name and a job description) decide a verdict of "yes" or "no":',
+  'For every item (a company name and a job description) return a verdict of "yes", "no", or "unsure":',
   '',
-  '1. If the job description explicitly says they will NOT sponsor, or requires US citizenship,',
-  '   a security/government clearance, "must be authorized to work without sponsorship", or anything',
-  '   equivalent to that -> verdict "no" (a complete blocker).',
-  '2. If the description says nothing like that, judge by the company\'s H-1B sponsorship history over',
-  '   roughly the past 3 years. If they have sponsored -> "yes".',
-  '',
-  'Only answer "no" when it is a COMPLETE blocker: an explicit non-sponsor / clearance / citizens-only',
-  'statement, OR you are genuinely confident the company does not and has not sponsored H-1B.',
-  'If you are unsure or iffy about whether a company will sponsor -> answer "yes" (keep it in sponsors).',
+  '1. "no" (a COMPLETE blocker) if EITHER: the job description explicitly says they will NOT sponsor,',
+  '   or requires US citizenship, a security/government clearance, "must be authorized to work without',
+  '   sponsorship", or anything equivalent; OR you are genuinely confident the company does not and has',
+  '   not sponsored H-1B.',
+  '2. "yes" if the description does not block sponsorship AND you are confident the company HAS sponsored',
+  '   H-1B in roughly the past 3 years (clear filing history, or the JD says they will sponsor).',
+  '3. "unsure" if you cannot confidently place it in "yes" or "no": no clear H-1B history either way, a',
+  '   small/unknown company, a job aggregator or reposter, or genuinely iffy. Do NOT guess "yes" or "no"',
+  '   in this case; use "unsure".',
   '',
   'Return ONLY strict JSON, no prose, in this exact shape, one entry per input in the same order:',
-  '{"results":[{"i":<index>,"verdict":"yes"|"no","reason":"<=8 words"}]}'
+  '{"results":[{"i":<index>,"verdict":"yes"|"no"|"unsure","reason":"<=8 words"}]}'
 ].join('\n');
 
 async function getConfig() {

@@ -850,7 +850,9 @@
     if (j.salary === undefined) j.salary = parseSalary((j.raw || '') + ' ' + (j.desc || ''));
     // The AI check's verdict is company-level and cached; apply it here so it
     // survives reloads and rescans. Known-list sponsors are never AI-blocked.
-    j.geminiBlock = !j.sponsor && GEMINI_VERDICTS[normId(j.company)] === 'no';
+    const gv = GEMINI_VERDICTS[normId(j.company)];
+    j.geminiBlock = !j.sponsor && gv === 'no';
+    j.geminiUnsure = !j.sponsor && gv === 'unsure';
     return j;
   }
 
@@ -868,16 +870,18 @@
   }
 
   // Which tab a job belongs to. One job → one tab, by priority:
-  // agency/recruiter -> repost -> confirmed non-sponsor -> fresh.
+  // agency/recruiter -> repost -> confirmed non-sponsor -> not sure -> fresh.
   // A job only counts as non-sponsor when there is a COMPLETE blocker:
   //   - the JD itself says citizens-only / clearance / no-sponsorship (local), OR
   //   - the AI check (Gemini) confirmed the company does not sponsor.
-  // Anything uncertain stays in Fresh; being absent from the known-sponsor list
-  // is NOT enough to demote a job.
+  // "unsure" = the AI could not confidently say yes or no (unknown/small company,
+  // aggregator, no clear H-1B history); it gets its own tab instead of Fresh.
+  // Being merely absent from the known-sponsor list is NOT enough to demote a job.
   function catOf(j) {
     if (j.staffing) return 'agency';
     if (j.repost) return 'reposted';
     if (j.noSponsor || j.geminiBlock) return 'nonsponsor';
+    if (j.geminiUnsure) return 'unsure';
     return 'fresh';
   }
 
@@ -1552,15 +1556,17 @@
           (resp.results || []).forEach(r => {
             const k = sliceKeys[r.i];
             if (k === undefined) return;
-            GEMINI_VERDICTS[k] = (r.verdict === 'no') ? 'no' : 'yes';
+            GEMINI_VERDICTS[k] = (r.verdict === 'no') ? 'no' : (r.verdict === 'unsure') ? 'unsure' : 'yes';
           });
           saveGemini();
           idx += CHUNK;
           if (idx < items.length) { step(); return; }
           aiRunning = false;
-          const blocked = Object.values(GEMINI_VERDICTS).filter(v => v === 'no').length;
+          const vals = Object.values(GEMINI_VERDICTS);
+          const blocked = vals.filter(v => v === 'no').length;
+          const unsure = vals.filter(v => v === 'unsure').length;
           renderJobs(loadJobs(), currentFilter());
-          setAiStatus('🤖 AI check done · ' + blocked + ' flagged not-sponsor total');
+          setAiStatus('🤖 AI check done · ' + blocked + ' not-sponsor · ' + unsure + ' not sure');
         });
       };
       step();
@@ -1586,7 +1592,7 @@
       ]],
       ['Sponsors', [
         ['🟢', '<b>H-1B sponsor badge</b> with the employer’s approval count, from the USCIS data.'],
-        ['🤖', '<b>AI sponsor check</b> (optional): Gemini reads each JD + company history and only demotes <b>complete blockers</b> to Not sponsors; anything iffy stays put. Add a key in Options.']
+        ['🤖', '<b>AI sponsor check</b> (optional): Gemini reads each JD + company history. Complete blockers go to <b>Not sponsors</b>, ones it cannot judge go to <b>Not sure</b>, the rest stay in Fresh. Add a key in Options.']
       ]],
       ['Read without leaving', [
         ['📄', '<b>Read the job description</b> right in the panel; tap 📄 on any job Deep scan has opened.']
@@ -1716,6 +1722,7 @@
           <button class="ljs-tab" data-tab="fresh">Fresh</button>
           <button class="ljs-tab" data-tab="reposted">Reposted</button>
           <button class="ljs-tab" data-tab="agency">Agencies</button>
+          <button class="ljs-tab" data-tab="unsure">Not sure</button>
           <button class="ljs-tab" data-tab="nonsponsor">Not sponsors</button>
         </div>
         <div id="ljs-list">
@@ -1861,7 +1868,7 @@
     // Copy the links of whatever is in the current tab, honouring filters.
     on('ljs-copy-links', 'click', () => {
       const opts = loadOpts();
-      const cur = { fresh: 1, reposted: 1, nonsponsor: 1, agency: 1 }[opts.tab] ? opts.tab : 'fresh';
+      const cur = { fresh: 1, reposted: 1, nonsponsor: 1, agency: 1, unsure: 1 }[opts.tab] ? opts.tab : 'fresh';
       const f = currentFilter().toLowerCase();
       const hay = j => (String(j.title || '') + ' ' + String(j.company || '') + ' ' +
         String(j.location || '')).toLowerCase();
@@ -2005,13 +2012,13 @@
     // Each job lands in exactly one tab. Priority: a visa blocker matters most
     // (you can't apply anyway), then agencies (indirect), then repost, else fresh.
     // So "Fresh" is direct-employer, genuinely-new roles only.
-    const tab = { fresh: 1, reposted: 1, nonsponsor: 1, agency: 1 }[opts.tab] ? opts.tab : 'fresh';
-    const counts = { fresh: 0, reposted: 0, nonsponsor: 0, agency: 0 };
+    const tab = { fresh: 1, reposted: 1, nonsponsor: 1, agency: 1, unsure: 1 }[opts.tab] ? opts.tab : 'fresh';
+    const counts = { fresh: 0, reposted: 0, nonsponsor: 0, agency: 0, unsure: 0 };
     base.forEach(j => counts[catOf(j)]++);
     const filtered = base.filter(j => catOf(j) === tab);
 
     // Tab labels carry their own counts, so the split is visible before clicking.
-    const tabLabel = { fresh: '⚡ Fresh', reposted: '🔁 Reposted', agency: '🏢 Agencies', nonsponsor: '🚫 Not sponsors' };
+    const tabLabel = { fresh: '⚡ Fresh', reposted: '🔁 Reposted', agency: '🏢 Agencies', unsure: '❓ Not sure', nonsponsor: '🚫 Not sponsors' };
     const tabsEl = document.getElementById('ljs-tabs');
     if (tabsEl) {
       tabsEl.querySelectorAll('.ljs-tab').forEach(t => {
@@ -2021,19 +2028,20 @@
       });
     }
 
-    const all = { fresh: 0, reposted: 0, agency: 0, nonsponsor: 0 };
+    const all = { fresh: 0, reposted: 0, agency: 0, nonsponsor: 0, unsure: 0 };
     jobs.forEach(j => all[catOf(j)]++);
     const unseen = jobs.filter(j => !seen.has(uidOf(j))).length;
     stats.textContent = all.fresh + ' fresh · ' + all.reposted + ' reposted · ' +
-      all.agency + ' agencies · ' + all.nonsponsor + ' not-sponsor · ' +
+      all.agency + ' agencies · ' + all.unsure + ' not-sure · ' + all.nonsponsor + ' not-sponsor · ' +
       unseen + ' unseen' + (lastScanNote ? ' · ' + lastScanNote : '');
 
     if (filtered.length === 0) {
-      const emptyEmoji = { reposted: '🎉', nonsponsor: '🎉', agency: '🎉', fresh: '🔍' };
+      const emptyEmoji = { reposted: '🎉', nonsponsor: '🎉', agency: '🎉', unsure: '🎉', fresh: '🔍' };
       const emptyMsg = {
         reposted: 'No reposts here, all fresh!',
         nonsponsor: 'Every job here is a known sponsor 🎉',
         agency: 'No recruiters here, all direct employers 🎉',
+        unsure: 'Nothing uncertain; run the AI check to sort borderline companies here',
         fresh: 'No known-sponsor roles yet; try Deep scan, or check the other tabs'
       };
       list.innerHTML = '<div class="ljs-empty"><span class="ljs-empty-emoji">' +
@@ -2050,7 +2058,10 @@
     } else if (tab === 'nonsponsor') {
       html += '<div class="ljs-tab-note">Confirmed non-sponsors only: roles that say citizens-only / ' +
         'clearance / “no sponsorship”, plus any the AI check judged a complete blocker. Anything ' +
-        'uncertain stays in Fresh.</div>';
+        'uncertain goes to the Not-sure tab instead.</div>';
+    } else if (tab === 'unsure') {
+      html += '<div class="ljs-tab-note">The AI could not confidently say yes or no here: unknown / small ' +
+        'companies, aggregators, or no clear H-1B history. Worth a manual check before applying.</div>';
     } else if (tab === 'agency') {
       html += '<div class="ljs-tab-note">Staffing / recruiting firms posting on behalf of a client, ' +
         'kept out of Fresh so it shows direct employers only.</div>';
