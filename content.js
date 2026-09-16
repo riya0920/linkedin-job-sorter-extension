@@ -640,6 +640,30 @@
     return (paneNow || detailProbe()).toLowerCase().indexOf(n) !== -1;
   }
 
+  // A string that is plainly a location, not an employer name.
+  function looksLikeLocation(s) {
+    return /\((remote|hybrid|on-?site)\)/i.test(s) ||
+           /,\s*[A-Z]{2}\b/.test(s) ||
+           /\b(united states|remote|greater\s.+\sarea|metropolitan area)\b/i.test(s);
+  }
+  // A string that is plainly a perk/benefit or card chrome, not an employer.
+  function looksLikeBenefit(s) {
+    return /\b(benefits?|401\(?k\)?|health|dental|vision|pto|insurance)\b/i.test(s) ||
+           /alumni work here|school alumni/i.test(s);
+  }
+  // The detail pane always leads with the employer: "Company | Title | ...".
+  // The card's positional fallback sometimes grabs a location or benefit line
+  // instead, so when the pane CONFIRMED this job we trust its first field.
+  // An unconfirmed pane may be showing the previous job, so we ignore it.
+  function paneCompany(probe) {
+    const p = String(probe || '');
+    if (/^UNCONFIRMED:/.test(p)) return '';
+    const first = (p.split('|')[0] || '').replace(/\s+/g, ' ').trim();
+    if (!first || first.length < 2 || first.length > 60) return '';
+    if (isTimeText(first) || looksLikeLocation(first) || looksLikeBenefit(first)) return '';
+    return first;
+  }
+
   // Scan the whole page minus the job cards, the page chrome and our own panel.
   // What remains is effectively the detail pane, wherever LinkedIn puts it;
   // no container-selector guessing required.
@@ -1257,6 +1281,16 @@
             link: id ? 'https://www.linkedin.com/jobs/view/' + id + '/' : '',
             scrapedAt: new Date().toISOString()
           };
+          // The card's positional company fallback can grab a location or a
+          // benefit line ("Pittsburgh, PA (Hybrid)", "401(k) benefit"). When the
+          // deep-scan pane confirmed this job, its first field is the real
+          // employer, so prefer it whenever the card value is missing or junk.
+          const paneCo = paneCompany(probe);
+          if (paneCo) {
+            const cardCo = String(job.company || '').trim();
+            const cardJunk = !cardCo || looksLikeLocation(cardCo) || looksLikeBenefit(cardCo) || isTimeText(cardCo);
+            if (cardJunk) job.company = paneCo;
+          }
           const sp = sponsorInfo(job.company);
           job.sponsor = sp !== null;
           job.sponsorCount = sp ? sp.count : 0;
@@ -1707,6 +1741,7 @@
           <button class="ljs-menu-item" id="ljs-scan-all">▶▶ Scan all pages</button>
           <button class="ljs-menu-item" id="ljs-mark-seen">✓ Mark everything seen</button>
           <button class="ljs-menu-item" id="ljs-ai-check">🤖 AI sponsor check</button>
+          <button class="ljs-menu-item" id="ljs-ai-clear">🧹 Clear AI verdicts &amp; recheck</button>
           <div class="ljs-menu-sep"></div>
           <button class="ljs-menu-item" id="ljs-export-csv">📥 Export CSV</button>
           <button class="ljs-menu-item" id="ljs-copy-links">🔗 Copy links (this tab)</button>
@@ -1887,6 +1922,15 @@
 
     // AI sponsorship check (Gemini).
     on('ljs-ai-check', 'click', () => runAiSponsorCheck(false));
+
+    // Wipe every cached AI verdict and re-run, so companies judged under an
+    // older rule (or before their JD was read) get a fresh yes / no / unsure.
+    on('ljs-ai-clear', 'click', () => {
+      GEMINI_VERDICTS = {};
+      saveGemini();
+      renderJobs(loadJobs(), currentFilter());
+      runAiSponsorCheck(false);
+    });
 
     // Fresh / Reposted are two separate lists, not one list with a divider.
     document.getElementById('ljs-tabs').addEventListener('click', e => {
