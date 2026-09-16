@@ -91,4 +91,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     getConfig().then(c => sendResponse({ hasKey: !!c.key, model: c.model }));
     return true;
   }
+  // Live end-to-end check with the currently saved key, so the Options page can
+  // tell the user plainly whether the key actually works.
+  if (msg && msg.type === 'ljs-gemini-test') {
+    classify([{ company: 'Google', jd: 'Software engineer. We sponsor H-1B visas.' }])
+      .then(r => {
+        if (!r.ok) return sendResponse(r);
+        const v = (r.results && r.results[0] && r.results[0].verdict) || '(no verdict)';
+        sendResponse({ ok: true, sample: v });
+      })
+      .catch(e => sendResponse({ ok: false, error: String(e && e.message || e) }));
+    return true;
+  }
 });
