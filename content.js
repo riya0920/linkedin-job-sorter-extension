@@ -95,7 +95,10 @@
   const SEEN_KEY = '__ljs_seen';
   const APPLIED_KEY = '__ljs_applied';
   const OPTS_KEY = '__ljs_opts';
-  const GEMINI_KEY = '__ljs_gemini';   // { normalisedCompany: 'yes' | 'no' }
+  const GEMINI_KEY = '__ljs_gemini';   // { _v, normalisedCompany: 'yes'|'no'|'unsure' }
+  // Bump this whenever the AI prompt/rules change, so every cached verdict from
+  // the old rules is dropped automatically on the next load. No manual "clear".
+  const VERDICT_VERSION = 'v3-2026-09-16';
 
   // Loose company key: lowercase, only alphanumerics. Used for dedup and the
   // Gemini verdict cache. Defined early so every code path can reach it.
@@ -817,12 +820,23 @@
 
   // Gemini sponsorship verdicts, cached per company so each is asked only once.
   function readGemini() {
-    try { const v = JSON.parse(localStorage.getItem(GEMINI_KEY) || '{}'); return v && typeof v === 'object' ? v : {}; }
-    catch (e) { return {}; }
+    try {
+      const raw = JSON.parse(localStorage.getItem(GEMINI_KEY) || '{}');
+      // Verdicts from an older prompt version are discarded, so a rules change
+      // takes effect everywhere instead of being masked by a stale "yes".
+      if (!raw || typeof raw !== 'object' || raw._v !== VERDICT_VERSION) return {};
+      const out = {};
+      for (const k in raw) if (k !== '_v') out[k] = raw[k];
+      return out;
+    } catch (e) { return {}; }
   }
   let GEMINI_VERDICTS = readGemini();
   function saveGemini() {
-    try { localStorage.setItem(GEMINI_KEY, JSON.stringify(GEMINI_VERDICTS)); } catch (e) {}
+    try {
+      const store = { _v: VERDICT_VERSION };
+      for (const k in GEMINI_VERDICTS) store[k] = GEMINI_VERDICTS[k];
+      localStorage.setItem(GEMINI_KEY, JSON.stringify(store));
+    } catch (e) {}
   }
 
   const DEFAULT_OPTS = {
