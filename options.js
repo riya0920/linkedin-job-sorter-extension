@@ -21,11 +21,9 @@ function saveKey(cb) {
 
 $('save').onclick = () => {
   saveKey(key => {
-    if (key && !/^AIza/.test(key)) {
-      setStatus('⚠ Saved, but this does not look like a Gemini key (should start with AIza)', 'bad', true);
-    } else {
-      setStatus(key ? '✓ Saved' : '✓ Saved (no key)', 'ok');
-    }
+    // "Save & test" is the real validator; don't nag about key format here,
+    // since some working keys are not the classic AIza... shape.
+    setStatus(key ? '✓ Saved (use "Save & test" to verify)' : '✓ Saved (no key)', 'ok');
   });
 };
 
