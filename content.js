@@ -92,6 +92,11 @@
   const SEEN_KEY = '__ljs_seen';
   const APPLIED_KEY = '__ljs_applied';
   const OPTS_KEY = '__ljs_opts';
+  const GEMINI_KEY = '__ljs_gemini';   // { normalisedCompany: 'yes' | 'no' }
+
+  // Loose company key: lowercase, only alphanumerics. Used for dedup and the
+  // Gemini verdict cache. Defined early so every code path can reach it.
+  function normId(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
 
   const UNIT_SECONDS = {
     second: 1, minute: 60, hour: 3600, day: 86400,
@@ -783,6 +788,16 @@
     catch (e) { console.warn('[LJS] could not save ' + key, e); }
   }
 
+  // Gemini sponsorship verdicts, cached per company so each is asked only once.
+  function readGemini() {
+    try { const v = JSON.parse(localStorage.getItem(GEMINI_KEY) || '{}'); return v && typeof v === 'object' ? v : {}; }
+    catch (e) { return {}; }
+  }
+  let GEMINI_VERDICTS = readGemini();
+  function saveGemini() {
+    try { localStorage.setItem(GEMINI_KEY, JSON.stringify(GEMINI_VERDICTS)); } catch (e) {}
+  }
+
   const DEFAULT_OPTS = {
     hideSeen: false, hideApplied: false, hideNegative: false,
     hideStaffing: false, hideNoSponsor: false,
@@ -833,6 +848,9 @@
     j.repost = isRepost(j);
     j.noSponsor = noSponsorSignal(j);
     if (j.salary === undefined) j.salary = parseSalary((j.raw || '') + ' ' + (j.desc || ''));
+    // The AI check's verdict is company-level and cached; apply it here so it
+    // survives reloads and rescans. Known-list sponsors are never AI-blocked.
+    j.geminiBlock = !j.sponsor && GEMINI_VERDICTS[normId(j.company)] === 'no';
     return j;
   }
 
@@ -850,21 +868,20 @@
   }
 
   // Which tab a job belongs to. One job → one tab, by priority:
-  // agency/recruiter → repost → not-a-sponsor → fresh. So FRESH is the clean
-  // pile: a KNOWN H-1B sponsor, direct employer, not reposted, not visa-blocked.
-  // "nonsponsor" = the role is visa-blocked (citizens-only/clearance) OR, when
-  // a sponsor list is loaded, the company isn't in it.
+  // agency/recruiter -> repost -> confirmed non-sponsor -> fresh.
+  // A job only counts as non-sponsor when there is a COMPLETE blocker:
+  //   - the JD itself says citizens-only / clearance / no-sponsorship (local), OR
+  //   - the AI check (Gemini) confirmed the company does not sponsor.
+  // Anything uncertain stays in Fresh; being absent from the known-sponsor list
+  // is NOT enough to demote a job.
   function catOf(j) {
     if (j.staffing) return 'agency';
     if (j.repost) return 'reposted';
-    if (j.noSponsor || (HAS_SPONSOR_DATA && !j.sponsor)) return 'nonsponsor';
+    if (j.noSponsor || j.geminiBlock) return 'nonsponsor';
     return 'fresh';
   }
 
   function idKey(j) { return j.jobId ? 'id:' + j.jobId : null; }
-  // Normalised so invisible differences, dash type, double spaces, an
-  // "(Verified job)" leftover, don't split one role into two rows.
-  function normId(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
   // Include location so the SAME title at the same company in two different
   // cities stays two roles, while a true duplicate (same city) collapses.
   function textKey(j) { return 'tc:' + normId(j.title) + '|' + normId(j.company) + '|' + normId(j.location); }
@@ -1484,6 +1501,72 @@
   }
 
   // A friendly, in-panel feature list: the "what can this do?" view.
+  // ---- AI SPONSORSHIP CHECK (Gemini) ----------------------------------------
+  const extPresent = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage);
+  let aiRunning = false;
+
+  function setAiStatus(text) {
+    const el = document.getElementById('ljs-stats');
+    if (el && text) el.textContent = text;
+  }
+
+  // Ask Gemini about companies we're unsure on: not an agency, not reposted,
+  // no local blocker, not already a known-list sponsor, and not already cached.
+  function runAiSponsorCheck(auto) {
+    if (aiRunning) return;
+    if (!extPresent) { if (!auto) alert('AI check needs the extension runtime (reload the extension).'); return; }
+    chrome.runtime.sendMessage({ type: 'ljs-gemini-haskey' }, res => {
+      if (!res || !res.hasKey) {
+        if (!auto) alert('Add your Gemini API key first: right-click the extension → Options.');
+        return;
+      }
+      const jobs = loadJobs();
+      const byCompany = new Map();     // normId -> {company, jd}
+      jobs.forEach(j => {
+        if (j.staffing || j.repost || j.noSponsor || j.sponsor) return; // already resolved
+        const k = normId(j.company);
+        if (!k || GEMINI_VERDICTS[k]) return;                            // unknown or cached
+        const cur = byCompany.get(k);
+        if (!cur) byCompany.set(k, { company: j.company, jd: j.desc || '' });
+        else if (!cur.jd && j.desc) cur.jd = j.desc;                     // prefer one with a JD
+      });
+      const keys = Array.from(byCompany.keys());
+      const items = Array.from(byCompany.values());
+      if (!items.length) { if (!auto) setAiStatus('AI check: nothing new to check ✓'); return; }
+
+      aiRunning = true;
+      setAiStatus('🤖 AI checking ' + items.length + ' compan' + (items.length === 1 ? 'y' : 'ies') + '…');
+      // Batch in chunks so a huge page doesn't make one giant request.
+      const CHUNK = 40;
+      let idx = 0;
+      const step = () => {
+        const slice = items.slice(idx, idx + CHUNK);
+        const sliceKeys = keys.slice(idx, idx + CHUNK);
+        chrome.runtime.sendMessage({ type: 'ljs-gemini-classify', items: slice }, resp => {
+          if (!resp || !resp.ok) {
+            aiRunning = false;
+            setAiStatus('⚠ AI check failed: ' + ((resp && resp.error) || 'unknown') +
+              (resp && resp.error === 'no-key' ? ' - add a key in Options' : ''));
+            return;
+          }
+          (resp.results || []).forEach(r => {
+            const k = sliceKeys[r.i];
+            if (k === undefined) return;
+            GEMINI_VERDICTS[k] = (r.verdict === 'no') ? 'no' : 'yes';
+          });
+          saveGemini();
+          idx += CHUNK;
+          if (idx < items.length) { step(); return; }
+          aiRunning = false;
+          const blocked = Object.values(GEMINI_VERDICTS).filter(v => v === 'no').length;
+          renderJobs(loadJobs(), currentFilter());
+          setAiStatus('🤖 AI check done · ' + blocked + ' flagged not-sponsor total');
+        });
+      };
+      step();
+    });
+  }
+
   function renderFeatures() {
     const list = document.getElementById('ljs-list');
     if (!list) return;
@@ -1502,7 +1585,8 @@
         ['🚫', '<b>Not sponsors</b>: companies not in your list, plus citizens-only / clearance roles.']
       ]],
       ['Sponsors', [
-        ['🟢', '<b>H-1B sponsor badge</b> with the employer’s FY2025 approval count. Fresh is sponsors-only; everyone else goes to <b>Not sponsors</b>.']
+        ['🟢', '<b>H-1B sponsor badge</b> with the employer’s approval count, from the USCIS data.'],
+        ['🤖', '<b>AI sponsor check</b> (optional): Gemini reads each JD + company history and only demotes <b>complete blockers</b> to Not sponsors; anything iffy stays put. Add a key in Options.']
       ]],
       ['Read without leaving', [
         ['📄', '<b>Read the job description</b> right in the panel; tap 📄 on any job Deep scan has opened.']
@@ -1616,6 +1700,7 @@
           <button class="ljs-menu-item" id="ljs-refresh">↻ Rescan this page</button>
           <button class="ljs-menu-item" id="ljs-scan-all">▶▶ Scan all pages</button>
           <button class="ljs-menu-item" id="ljs-mark-seen">✓ Mark everything seen</button>
+          <button class="ljs-menu-item" id="ljs-ai-check">🤖 AI sponsor check</button>
           <div class="ljs-menu-sep"></div>
           <button class="ljs-menu-item" id="ljs-export-csv">📥 Export CSV</button>
           <button class="ljs-menu-item" id="ljs-copy-links">🔗 Copy links (this tab)</button>
@@ -1793,6 +1878,9 @@
     // Features / about view.
     on('ljs-info', 'click', () => renderFeatures());
 
+    // AI sponsorship check (Gemini).
+    on('ljs-ai-check', 'click', () => runAiSponsorCheck(false));
+
     // Fresh / Reposted are two separate lists, not one list with a divider.
     document.getElementById('ljs-tabs').addEventListener('click', e => {
       const tab = e.target.closest('.ljs-tab');
@@ -1960,8 +2048,9 @@
       html += '<div class="ljs-tab-note">Reposts: circulating longer than their dates suggest. ' +
         'Kept out of the Fresh list entirely.</div>';
     } else if (tab === 'nonsponsor') {
-      html += '<div class="ljs-tab-note">Companies not in your H-1B sponsor list, plus roles that ' +
-        'say citizens-only / clearance / “no sponsorship”. Fresh shows known sponsors only.</div>';
+      html += '<div class="ljs-tab-note">Confirmed non-sponsors only: roles that say citizens-only / ' +
+        'clearance / “no sponsorship”, plus any the AI check judged a complete blocker. Anything ' +
+        'uncertain stays in Fresh.</div>';
     } else if (tab === 'agency') {
       html += '<div class="ljs-tab-note">Staffing / recruiting firms posting on behalf of a client, ' +
         'kept out of Fresh so it shows direct employers only.</div>';
@@ -2082,6 +2171,9 @@
           ' new · ' + page + ' page' + (page === 1 ? '' : 's') + ' scanned';
       }
       renderJobs(existing, currentFilter());
+      // A Deep scan captured job descriptions; the best moment to run the AI
+      // sponsorship check (auto; silently no-ops if no key is set).
+      if (deep) setTimeout(() => runAiSponsorCheck(true), 400);
     }
 
     scanOne();
