@@ -1818,6 +1818,18 @@
     // of those names the sponsor list does not know. Distinguishes "the list is
     // missing employers" from "the company name was scraped wrong".
     document.getElementById('ljs-copy-unmatched').onclick = () => {
+      // Ask the worker whether a Gemini key is set, then build the report so it
+      // can say plainly whether the AI check is even able to run. Fall back to
+      // "unknown" if the worker does not answer quickly.
+      let answered = false;
+      const go = keyInfo => { if (answered) return; answered = true; buildDebug(keyInfo); };
+      try {
+        chrome.runtime.sendMessage({ type: 'ljs-gemini-haskey' }, res => go(res || null));
+      } catch (e) { go(null); }
+      setTimeout(() => go(null), 1200);
+    };
+
+    function buildDebug(keyInfo) {
       const jobs = loadJobs();
       const out = [];
 
@@ -1831,6 +1843,7 @@
         out.push('   company="' + j.company + '"  time="' + j.timeText + '"');
         out.push('   repost=' + !!j.repost + '  sponsor=' + !!j.sponsor +
                  '  agency=' + !!j.staffing + '  blocker=' + (j.noSponsor || 'none'));
+        out.push('   TAB=' + catOf(j) + '  AI=' + (GEMINI_VERDICTS[normId(j.company)] || 'not-checked'));
         out.push('   raw=' + JSON.stringify(String(j.raw || '').slice(0, 260)));
         out.push('   paneRead=' + JSON.stringify(String(j.detailProbe || '(no deep scan)')));
       });
@@ -1890,7 +1903,34 @@
       });
       const rows = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
       out.push('', '=== COMPANIES WITH NO SPONSOR MATCH ===');
-      rows.forEach(([c, n]) => out.push('   ' + n + '\t' + c));
+      rows.forEach(([c, n]) => {
+        const v = GEMINI_VERDICTS[normId(c)] || 'not-checked';
+        out.push('   ' + n + '\t' + c + '\t[AI: ' + v + ']');
+      });
+
+      // Section 4: is the AI check actually running? This is usually the answer
+      // when "non-sponsors" are still sitting in Fresh.
+      out.push('', '=== AI SPONSOR CHECK ===');
+      if (!keyInfo) {
+        out.push('   Gemini key: UNKNOWN (worker did not answer; reload the extension)');
+      } else {
+        out.push('   Gemini key set: ' + (keyInfo.hasKey ? 'YES' : 'NO  <-- add a key in Options, or the AI never runs') +
+          (keyInfo.model ? '  (model ' + keyInfo.model + ')' : ''));
+      }
+      const vals = Object.values(GEMINI_VERDICTS);
+      out.push('   cached verdicts: ' + vals.length +
+        ' (yes ' + vals.filter(v => v === 'yes').length +
+        ' · no ' + vals.filter(v => v === 'no').length +
+        ' · unsure ' + vals.filter(v => v === 'unsure').length + ')');
+      if (!vals.length) out.push('   (none cached -> AI has not run. Menu: AI sponsor check, or Clear AI verdicts & recheck)');
+
+      const tabCounts = {};
+      jobs.forEach(j => { const t = catOf(j); tabCounts[t] = (tabCounts[t] || 0) + 1; });
+      out.push('', '=== TAB TOTALS ===',
+        '   fresh ' + (tabCounts.fresh || 0) + ' · reposted ' + (tabCounts.reposted || 0) +
+        ' · agency ' + (tabCounts.agency || 0) + ' · unsure ' + (tabCounts.unsure || 0) +
+        ' · nonsponsor ' + (tabCounts.nonsponsor || 0));
+
       out.push('', jobs.length + ' jobs · ' + jobs.filter(j => j.repost).length + ' flagged repost · ' +
         jobs.filter(j => j.sponsor).length + ' sponsor-matched');
 
@@ -1899,7 +1939,7 @@
         b.textContent = '✓ copied';
         setTimeout(() => b.textContent = '🔍 Debug', 2000);
       });
-    };
+    }
     // Copy the links of whatever is in the current tab, honouring filters.
     on('ljs-copy-links', 'click', () => {
       const opts = loadOpts();
