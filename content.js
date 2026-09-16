@@ -52,6 +52,9 @@
   // words against the company name (word-boundary), so "consulting" catches
   // "Apetan Consulting LLC" but not a company merely mentioning consulting.
   const STAFFING_COMPANIES = [
+    // job aggregators / reposters and training-to-placement shops: not the real
+    // direct employer, so they belong out of Fresh in the Agencies tab.
+    'jobright', 'jobright.ai', 'enhance it', 'lensa', 'ziprecruiter', 'talentify',
     // named agencies / IT body-shops
     'diverse lynx', 'cybercoders', 'insight global', 'robert half', 'teksystems',
     'randstad', 'adecco', 'kforce', 'motion recruitment', 'jobot', 'dice',
