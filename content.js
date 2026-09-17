@@ -1751,6 +1751,7 @@
             </div>
           </div>
           <div id="ljs-stats"></div>
+          <div id="ljs-keybanner" class="ljs-hidden"></div>
         </div>
 
         <div id="ljs-menu" class="ljs-hidden">
@@ -2050,7 +2051,30 @@
         existing.length + ' jobs from previous pages · hit Scan to add this page';
     }
 
+    refreshKeyBanner();
     // Scanning is deliberately manual; nothing runs until Rescan is clicked.
+  }
+
+  // Show a standing banner in the panel whenever the AI check has no key, so it
+  // is obvious the sponsor sorting is running on the local list only. The key
+  // lives in chrome.storage.local and is wiped if the extension is REMOVED and
+  // re-added (use the reload arrow to update instead).
+  function refreshKeyBanner() {
+    const el = document.getElementById('ljs-keybanner');
+    if (!el) return;
+    const extOk = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage);
+    if (!extOk) { el.className = 'ljs-hidden'; return; }
+    try {
+      chrome.runtime.sendMessage({ type: 'ljs-gemini-haskey' }, res => {
+        if (chrome.runtime && chrome.runtime.lastError) { el.className = 'ljs-hidden'; return; }
+        if (res && res.hasKey) {
+          el.className = 'ljs-hidden';
+        } else {
+          el.textContent = '⚠ AI sponsor check is OFF (no API key). Right-click the extension → Options to add one.';
+          el.className = 'ljs-keybanner-on';
+        }
+      });
+    } catch (e) { el.className = 'ljs-hidden'; }
   }
 
   function currentFilter() {
