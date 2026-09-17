@@ -2069,6 +2069,10 @@
         if (chrome.runtime && chrome.runtime.lastError) { el.className = 'ljs-hidden'; return; }
         if (res && res.hasKey) {
           el.className = 'ljs-hidden';
+          // Key is present: judge any not-yet-checked companies automatically,
+          // so adding the key after a scan does not leave the AI idle. It only
+          // asks about uncached candidates, so a second call is a no-op.
+          runAiSponsorCheck(true);
         } else {
           el.textContent = '⚠ AI sponsor check is OFF (no API key). Right-click the extension → Options to add one.';
           el.className = 'ljs-keybanner-on';
