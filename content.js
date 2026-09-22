@@ -42,6 +42,14 @@
     [/\bwithout\s+(the\s+need\s+for\s+)?(visa\s+)?sponsor/i, 'no sponsorship'],
     [/\bnot\s+eligible\s+for\s+(visa\s+)?sponsor/i, 'no sponsorship'],
     [/\bmust\s+be\s+(legally\s+)?authorized\s+to\s+work\s+.{0,40}\bwithout\b/i, 'no sponsorship'],
+    // "must not require sponsorship now or in the future", "does not require visa sponsorship"
+    [/\bnot\s+(currently\s+)?(require|requiring|need|needing)s?\b[^.]{0,45}\bsponsor/i, 'no sponsorship'],
+    // "authorized to work for any employer" / "for any U.S. employer" (implies no sponsorship)
+    [/\bauthoriz\w+\s+to\s+work\b[^.]{0,60}\bany\s+(u\.?\s?s\.?\s+)?employer\b/i, 'no sponsorship'],
+    // "sponsorship will not be provided/offered/available/considered"
+    [/\bsponsorship\b[^.]{0,20}\b(will\s+not|not)\s+be\s+(provided|offered|available|considered|granted)\b/i, 'no sponsorship'],
+    // "we will not sponsor applicants", "not sponsor candidates for ... visa"
+    [/\bnot\s+sponsor\b[^.]{0,30}\b(applicant|candidate|employee|individual|for\s+(a\s+)?(work|employment)?\s*visa)/i, 'no sponsorship'],
     [/\b(active\s+)?(security\s+)?clearance\b/i, 'clearance'],
     [/\bts\s?\/\s?sci\b/i, 'clearance'],
     [/\btop\s+secret\b/i, 'clearance'],
@@ -98,7 +106,7 @@
   const GEMINI_KEY = '__ljs_gemini';   // { _v, normalisedCompany: 'yes'|'no'|'unsure' }
   // Bump this whenever the AI prompt/rules change, so every cached verdict from
   // the old rules is dropped automatically on the next load. No manual "clear".
-  const VERDICT_VERSION = 'v3-2026-09-16';
+  const VERDICT_VERSION = 'v4-2026-09-22';
 
   // Loose company key: lowercase, only alphanumerics. Used for dedup and the
   // Gemini verdict cache. Defined early so every code path can reach it.
@@ -1861,7 +1869,8 @@
         out.push('   company="' + j.company + '"  time="' + j.timeText + '"');
         out.push('   repost=' + !!j.repost + '  sponsor=' + !!j.sponsor +
                  '  agency=' + !!j.staffing + '  blocker=' + (j.noSponsor || 'none'));
-        out.push('   TAB=' + catOf(j) + '  AI=' + (GEMINI_VERDICTS[normId(j.company)] || 'not-checked'));
+        out.push('   TAB=' + catOf(j) + '  AI=' + (GEMINI_VERDICTS[normId(j.company)] || 'not-checked') +
+                 '  JDchars=' + String(j.desc || '').length);
         out.push('   raw=' + JSON.stringify(String(j.raw || '').slice(0, 260)));
         out.push('   paneRead=' + JSON.stringify(String(j.detailProbe || '(no deep scan)')));
       });
